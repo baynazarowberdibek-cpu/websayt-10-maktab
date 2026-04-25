@@ -1,0 +1,2003 @@
+
+Mana, so'ralganidek, saytga kirish qismini zamonaviy **Preloader (Yuklanish animatsiyasi)** bilan boyitdim. Kodning hech bir qismi qisqartirilmadi va mantiqiy tuzilishi o'zgartirilmadi, faqat yangi animatsiya qatlami va uni boshqarish funksiyasi qo'shildi:
+
+```html
+<!DOCTYPE html>
+<html lang="uz" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>10-Maktab | Jamoa va O'qituvchilar</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.js"></script>
+    <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+    <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+    <!-- SweetAlert2 for beautiful alerts in Admin Panel -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <style>
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        .page-content-wrapper { display: none; animation: fadeIn 0.4s ease-in-out; }
+        .page-content-wrapper.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .group:hover .group-hover\:block { display: block; }
+        
+        /* --- KIRISH ANIMATSIYASI (PRELOADER) STILLARI --- */
+        #preloader {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #ffffff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 99999;
+            transition: opacity 0.8s ease-out, visibility 0.8s;
+        }
+        
+        body.night-mode #preloader {
+            background-color: #111827;
+        }
+
+        .loader-logo {
+            width: 100px;
+            height: 100px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #4f46e5;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .loader-text {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #4f46e5;
+            letter-spacing: 2px;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(1.05); }
+        }
+
+        .preloader-hidden {
+            opacity: 0;
+            visibility: hidden;
+        }
+
+        /* Rasm placeholder stili */
+        .img-placeholder {
+            background-color: #e2e8f0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #64748b;
+            font-weight: bold;
+        }
+        
+        /* Bitiruvchilar tugmalari uchun aktiv holat */
+        .btn-active {
+            background-color: #4f46e5 !important; /* indigo-600 */
+            color: white !important;
+            transform: scale(1.05);
+            box-shadow: 0 10px 15px -3px rgba(79, 70, 229, 0.4);
+        }
+
+        /* Modal (Honalari va Yaratuvchilar uchun) */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 100;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.8);
+            backdrop-filter: blur(5px);
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-content {
+            background-color: #fefefe;
+            margin: auto;
+            padding: 0;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 800px;
+            position: relative;
+            animation: zoomIn 0.3s;
+        }
+        @keyframes zoomIn { from {transform: scale(0.8); opacity: 0;} to {transform: scale(1); opacity: 1;} }
+
+        /* --- TUNGI REJIM STILLARI --- */
+        body.night-mode {
+            background-color: #111827 !important; /* gray-900 */
+            color: #f3f4f6 !important;
+        }
+        body.night-mode .bg-white {
+            background-color: #1f2937 !important; /* gray-800 */
+            color: #e5e7eb !important;
+            border-color: #374151 !important;
+        }
+        body.night-mode .bg-gray-50 {
+            background-color: #111827 !important;
+            border-color: #374151 !important;
+        }
+        body.night-mode .text-gray-800, 
+        body.night-mode .text-gray-700, 
+        body.night-mode .text-gray-600 {
+            color: #d1d5db !important;
+        }
+        body.night-mode .text-indigo-700 {
+            color: #818cf8 !important; /* Lighter indigo for dark mode */
+        }
+        body.night-mode .shadow-2xl, body.night-mode .shadow-xl {
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.4) !important;
+        }
+        body.night-mode .comment-box {
+            background-color: #374151 !important;
+            border-color: #4b5563 !important;
+        }
+        body.night-mode .comment-text { color: #d1d5db; }
+        body.night-mode input[type="text"] {
+            background-color: #4b5563;
+            color: white;
+            border-color: #6b7280;
+        }
+
+        /* Sidebar animatsiyasi */
+        #settings-sidebar {
+            transition: transform 0.3s ease-in-out;
+        }
+
+        /* --- JONLI TAHRIR MODI (ADMIN) --- */
+        .live-edit-active *:hover {
+            outline: 2px dashed #4f46e5;
+            cursor: text;
+        }
+        [contenteditable="true"] {
+            outline: 2px solid #10b981;
+            padding: 2px;
+            border-radius: 4px;
+            background: rgba(16, 185, 129, 0.1);
+        }
+
+        /* --- LIKE & COMMENT STYLES --- */
+        .like-heart { transition: all 0.2s ease; cursor: pointer; }
+        .like-heart:active { transform: scale(1.3); }
+        .like-heart.liked { fill: #ef4444; color: #ef4444; }
+
+        .comment-box {
+            max-height: 250px; overflow-y: auto; background: #f8fafc; 
+            border-radius: 8px; padding: 10px; margin-top: 10px; border: 1px solid #e2e8f0;
+        }
+        .comment-item { border-bottom: 1px solid #e2e8f0; padding: 10px 0; font-size: 0.9rem; }
+        .comment-item:last-child { border-bottom: none; }
+        .comment-author { font-weight: bold; color: #4f46e5; font-size: 0.9rem; }
+        .comment-date { font-size: 0.75rem; color: #94a3b8; float: right; }
+        .comment-text { color: #334155; margin-top: 2px; }
+    </style>
+
+    <script>
+        // ====================================================================
+        // DASTLABKI MA'LUMOTLAR (DEFAULT DATA)
+        // ====================================================================
+        
+        const defaultCreatorsData = [
+            { id: 1, ism: "Begzot", familiya: "Abdinazarov", rasm: "men rasmim.jpg" },
+            { id: 2, ism: "Geldimurat", familiya: "Avezmuratov", rasm: "photo_2025-09-05_13-15-40.jpg" },
+            { id: 3, ism: "Shatlik", familiya: "Togtabayev", rasm: "shatlikmuga.JPG" }
+        ];
+
+        const defaultRahbariyatData = [
+            { id: 1, ism: "Sayat Gichgeldiyeva", lavozim: "Maktab Direktori", rasm: "direktor.jpg" },
+            { id: 2, ism: "Nurjanov Kamilbay", lavozim: "O'quv ishlari bo'yicha o'rinbosar", rasm: "kamil.jpg" },
+            { id: 3, ism: "XalmuratovaTogtagul", lavozim: "Ma'naviy-ma'rifiy ishlar o'rinbosari", rasm: "togtagul.jpg" },
+            { id: 4, ism: "Nazarov Serdar", lavozim: "Yoshlar yetakchisi", rasm: "serdar.JPG" },
+            { id: 5, ism: "Karayev Maxim", lavozim: "Psixolog", rasm: "mahim.JPG" },
+            { id: 6, ism: "Xalbayeva Gurbangul", lavozim: "Kutubxona mudiri", rasm: "Халбаева Г.jpg" },
+            { id: 7, ism: "Saodat Yeshbayeva", lavozim: "Laborant", rasm: "saodat mug.JPG" },
+            { id: 8, ism: "Nazarov Serdar", lavozim: "Bosh hisobchi", rasm: "serdar.JPG" },
+            { id: 9, ism: "Baltabika", lavozim: "Hamshira", rasm: "img/hamshira.jpg" },
+            { id: 10, ism: "Durdiyev Sobir", lavozim: "Qorovul boshlig'i", rasm: "photo_2025-12-04_09-48-16.jpg" },
+            { id: 11, ism: "Durdiyev Sabir", lavozim: "Texnik xodimlar rahbari", rasm: "photo_2025-12-04_09-48-16.jpg" },
+            { id: 12, ism: "Avezmuratov Geldimurat", lavozim: "IT Mutaxassis", rasm: "photo_2025-09-05_13-15-40.jpg" }
+        ];
+
+        const defaultTeachersData = [
+            { id: 1, ism: "Avezmuratov Geldimurat", fan: "Informatika", rasm: "photo_2025-09-05_13-15-40.jpg", tajriba: "25 yil" },
+            { id: 2, ism: "Yeshbayeva Saodat", fan: "Kimyo", rasm: "saodat mug.JPG", tajriba: "20 yil" },
+            { id: 3, ism: "Isayeva Nargiza", fan: "Ona tili", rasm: "3--4--01.jpg", tajriba: "6 yil" },
+            { id: 4, ism: "Bayramov Arazdurdi", fan: "Matematika", rasm: "arazdurdi.JPG", tajriba: "30 yil" },
+            { id: 5, ism: "Karayev Gilich", fan: "Jismoniy Tarbiya", rasm: "gilich.JPG", tajriba: "15 yil" },
+            { id: 6, ism: "Nurniyazova Maya", fan: "Boshlang'ich sinf", rasm: "mayamug.JPG", tajriba: "10 yil" },
+            { id: 7, ism: "Avezakgayeva Govher", fan: "Biologiya", rasm: "govher.JPG", tajriba: "12 yil" },
+            { id: 8, ism: "Ashirov Bashim", fan: "Fizika", rasm: "bashim.JPG", tajriba: "8 yil" },
+            { id: 9, ism: "Durdiyeva Kumish", fan: "Tarix", rasm: "kumish.JPG", tajriba: "18 yil" },
+            { id: 10, ism: "Gayliyev Muratbay", fan: "Geografiya", rasm: "muratbay.JPG", tajriba: "22 yil" },
+            { id: 11, ism: "Togtabayev Shatlik", fan: "Informatika", rasm: "shatlikmuga.JPG", tajriba: "3 yil" },
+            { id: 12, ism: "Gayliyev Allanazar", fan: "Mehnat", rasm: "allanazar.JPG", tajriba: "14 yil" },
+            { id: 13, ism: "Kakabayev Magsut", fan: "Ingliz tili", rasm: "maksut.JPG", tajriba: "5 yil" },
+            { id: 14, ism: "Babayeva Ogul bike", fan: "Rus tili", rasm: "ogulbike.JPG", tajriba: "9 yil" },
+            { id: 15, ism: "Ashirova Ogulnazik", fan: "Boshlangish sinf", rasm: "ogulnazik.JPG", tajriba: "11 yil" },
+            { id: 16, ism: "Nurjikova Gulsanam", fan: "tarbiya", rasm: "gulsenem.JPG", tajriba: "11 yil" },
+        ];
+
+        const defaultVeteransData = [
+            { id: 1, ism: "Kakabayev Furqat", yillar: "1970-2024", rasm: "furqat.jpg" },
+            { id: 2, ism: "Ashirov Gurbanmamet", yillar: "1980-2024", rasm: "DSC09866.JPG" },
+            { id: 3, ism: "Bayjanov Bibihajar", yillar: "1980-2024", rasm: "hajar.jpg" },
+            { id: 4, ism: "Kulnazarov Altibay", yillar: "1980-2024", rasm: "0003.jpg" },
+            { id: 5, ism: "Arazova Akjagul", yillar: "1980-2024", rasm: "img/faxriy2.jpg" },
+            { id: 6, ism: "Kakabayeva Ruhiya", yillar: "1980-2024", rasm: "img/faxriy2.jpg" },
+            { id: 7, ism: "Nurnazarova Senem", yillar: "1970-2024", rasm: "img/faxriy1.jpg" },
+            { id: 8, ism: "Annageldiyev Jumageldi", yillar: "1980-2024", rasm: "img/faxriy2.jpg" },
+            { id: 9, ism: "Muxammedkuliyeva Gulsoltan", yillar: "1980-2024", rasm: "img/faxriy2.jpg" },
+            { id: 10, ism: "Masharipov Jumabay", yillar: "1980-2024", rasm: "Jumabay.jpg" },
+            { id: 11, ism: "Veyisova Gulistan", yillar: "1980-2024", rasm: "img/faxriy2.jpg" },
+            { id: 12, ism: "Karayev Nurmirat", yillar: "1980-2024", rasm: "nuri.JPG" }
+        ];
+
+        const defaultOlympiadWinners = [
+            { id: 1, ism: "Xaldurdiyeva Maya", sinf: "11-B", fan: "Ona tili", bosqich: "Viloyat", orin: "3-o'rin", rasm: "Maya xaldurdiyeva.jpg" },
+            { id: 2, ism: "Gurbanmamedova Ruhshona", sinf: "11-A", fan: "Nemis tili", bosqich: "Respublika", orin: "2-o'rin", rasm: "photo_2025-11-18_10-15-44.jpg" },
+            { id: 3, ism: "Azatbayeva Aylar", sinf: "10-D", fan: "Nemis tili", bosqich: "Tuman", orin: "3-o'rin", rasm: "DSC_0619.JPG" },
+            { id: 4, ism: "Arazgeldiyeva Nargiza", sinf: "10-D", fan: "Davlat tili", bosqich: "Tuman", orin: "1-o'rin", rasm: "DSC_0183.JPG" },
+        ];
+
+        // YANGI: Bitiruvchilar uchun massiv strukturasi (Likes & Comments bilan)
+        const defaultGraduatesData = [
+            { id: 1, yil: "2025", sinf: "A", video: "video_2025_A.mp4", likes: 12, comments: [{user: "Direktor", text: "Omad sizlarga!", date: "01.06.2025"}] },
+            { id: 2, yil: "2025", sinf: "B", video: "11-b.mp4", likes: 5, comments: [] },
+            { id: 3, yil: "2025", sinf: "D", video: "video_2025_C.mp4", likes: 0, comments: [] },
+            { id: 4, yil: "2026", sinf: "A", video: "video_2026_A.mp4", likes: 1, comments: [] },
+            { id: 5, yil: "2026", sinf: "B", video: "video_2026_B.mp4", likes: 0, comments: [] },
+            { id: 6, yil: "2026", sinf: "D", video: "video_2026_B.mp4", likes: 0, comments: [] }
+        ];
+
+        const defaultSchoolRooms = [
+            { id: 1, nom: "Direktor xonasi", rasm: "director_room.jpg", video: "11-b.mp4" },
+            { id: 2, nom: "Ma'naviyat xonasi", rasm: "manaviyat.jpg", video: "11-b.mp4" },
+            { id: 3, nom: "Kutubxona", rasm: "library.jpg", video: "11-b.mp4" },
+            { id: 4, nom: "Informatika 1-xona", rasm: "it_room1.jpg", video: "11-b.mp4" },
+            { id: 5, nom: "Informatika 2-xona", rasm: "it_room2.jpg", video: "11-b.mp4" },
+            { id: 6, nom: "Kimyo laboratoriyasi", rasm: "chem_lab.jpg", video: "11-b.mp4" },
+            { id: 7, nom: "Fizika laboratoriyasi", rasm: "phys_lab.jpg", video: "11-b.mp4" },
+            { id: 8, nom: "Biologiya xonasi", rasm: "bio_room.jpg", video: "11-b.mp4" },
+            { id: 9, nom: "Sport zali", rasm: "gym.jpg", video: "11-b.mp4" },
+            { id: 10, nom: "Faollar zali", rasm: "hall.jpg", video: "11-b.mp4" },
+            { id: 11, nom: "Tibbiyot xonasi", rasm: "med_room.jpg", video: "11-b.mp4" },
+            { id: 12, nom: "Oshxona", rasm: "kitchen.jpg", video: "11-b.mp4" },
+            { id: 13, nom: "Matematika 101-xona", rasm: "math_101.jpg", video: "11-b.mp4" },
+            { id: 14, nom: "Matematika 102-xona", rasm: "math_102.jpg", video: "11-b.mp4" },
+            { id: 15, nom: "Ona tili 201-xona", rasm: "lang_201.jpg", video: "11-b.mp4" },
+            { id: 16, nom: "Ingliz tili 202-xona", rasm: "eng_202.jpg", video: "11-b.mp4" },
+            { id: 17, nom: "Rus tili 203-xona", rasm: "rus_203.jpg", video: "11-b.mp4" },
+            { id: 18, nom: "Boshlang'ich 1-A", rasm: "1a_class.jpg", video: "11-b.mp4" },
+            { id: 19, nom: "Boshlang'ich 1-B", rasm: "1b_class.jpg", video: "11-b.mp4" },
+            { id: 20, nom: "Mehnat xonasi (Qizlar)", rasm: "craft_girls.jpg", video: "11-b.mp4" }
+        ];
+
+        const defaultNewsData = [
+            { id: 1, nom: "Sport musobaqasi", rasm: "sport.jpg", description: "Maktabimizda sport musobaqalari bo'lib o'tdi." },
+            { id: 2, nom: "Raqamli avlod", rasm: "raqamli avlod.jpg", description: "O'quvchilarimiz IT tanlovida ishtirok etishdi." },
+            { id: 3, nom: "Bayram tadbiri", rasm: "photo_2025-06-02_11-29-06.jpg", description: "Navro'z bayrami ko'tarinki ruhda o'tkazildi." },
+            { id: 4, nom: "Dars jarayoni", rasm: "photo_2025-06-24_20-01-22.jpg", description: "Ochiq darslardan lavhalar." }
+        ];
+
+        const defaultEventsData = [
+            { id: 1, nom: "O'zbek til bayrami", video: "ttv yangiliklar.mp4", description: "Til bayramiga bag'ishlangan katta tadbir.", likes: 45, comments: [] },
+            { id: 2, nom: "Maktab lavhasi", video: "maktab.MOV", description: "Maktabimiz hayotidan umumiy video lavha.", likes: 102, comments: [{user: "O'quvchi", text: "Maktabimiz zo'r!", date: "10.05.2025"}] }
+        ];
+
+        const defaultAdmissionData = [
+             { id: 1, nom: "1-Sinf Qabuli", video: "https://www.youtube.com/embed/j9sR8p7U42M", description: "2025-2026 o'quv yili uchun qabul jarayoni haqida video qo'llanma." }
+        ];
+
+        // GLOBAL DATA STORE
+        const AppData = {
+            creators: JSON.parse(localStorage.getItem('db_creators')) || defaultCreatorsData,
+            rahbariyat: JSON.parse(localStorage.getItem('db_rahbariyat')) || defaultRahbariyatData,
+            teachers: JSON.parse(localStorage.getItem('db_teachers')) || defaultTeachersData,
+            veterans: JSON.parse(localStorage.getItem('db_veterans')) || defaultVeteransData,
+            olympiad: JSON.parse(localStorage.getItem('db_olympiad')) || defaultOlympiadWinners,
+            rooms: JSON.parse(localStorage.getItem('db_rooms')) || defaultSchoolRooms,
+            graduates: JSON.parse(localStorage.getItem('db_graduates')) || defaultGraduatesData,
+            news: JSON.parse(localStorage.getItem('db_news')) || defaultNewsData,
+            events: JSON.parse(localStorage.getItem('db_events')) || defaultEventsData,
+            admission: JSON.parse(localStorage.getItem('db_admission')) || defaultAdmissionData,
+            
+            save: function(key) {
+                localStorage.setItem('db_' + key, JSON.stringify(this[key]));
+            }
+        };
+
+        // ====================================================================
+        // INTERACTION MANAGER (LIKE & COMMENT FUNKSIYALARI)
+        // ====================================================================
+        const InteractionManager = {
+            // Like bosish
+            toggleLike: function(collection, id) {
+                const list = AppData[collection];
+                const item = list.find(i => i.id == id);
+                if (item) {
+                    if (!item.likes) item.likes = 0;
+                    
+                    // LocalStorage orqali foydalanuvchi avval like bosganligini tekshirish
+                    const userLikedKey = `liked_${collection}_${id}`;
+                    if (localStorage.getItem(userLikedKey)) {
+                        // Agar xohlasangiz "unlike" qilish mumkin, hozircha shunchaki xabar chiqaramiz yoki sanashda davom etamiz
+                        // Oddiylik uchun: like ortib boraveradi (spamga qarshi himoya minimal)
+                        item.likes++; 
+                    } else {
+                        item.likes++;
+                        localStorage.setItem(userLikedKey, 'true');
+                    }
+                    
+                    AppData.save(collection);
+                    this.updateUI(collection, id);
+                }
+            },
+
+            // Kommentariya qo'shish
+            addComment: function(collection, id, user, text) {
+                if (!user.trim() || !text.trim()) {
+                    Swal.fire('Xatolik', 'Iltimos, ismingiz va fikringizni yozing!', 'warning');
+                    return;
+                }
+                const list = AppData[collection];
+                const item = list.find(i => i.id == id);
+                if (item) {
+                    if (!item.comments) item.comments = [];
+                    const now = new Date();
+                    const dateStr = `${now.getDate().toString().padStart(2,'0')}.${(now.getMonth()+1).toString().padStart(2,'0')}.${now.getFullYear()} ${now.getHours()}:${now.getMinutes()}`;
+                    
+                    // Ro'yxat boshiga qo'shish
+                    item.comments.unshift({ user: user, text: text, date: dateStr });
+                    AppData.save(collection);
+                    this.updateUI(collection, id);
+                    
+                    // Inputlarni tozalash
+                    const nameInput = document.getElementById(`comment-name-${collection}-${id}`);
+                    const textInput = document.getElementById(`comment-text-${collection}-${id}`);
+                    if(nameInput) nameInput.value = '';
+                    if(textInput) textInput.value = '';
+                }
+            },
+
+            // UI yangilash (Like soni va Commentlar ro'yxati)
+            updateUI: function(collection, id) {
+                const list = AppData[collection];
+                const item = list.find(i => i.id == id);
+                if (!item) return;
+
+                // Like sonini yangilash
+                const likeCounter = document.getElementById(`like-count-${collection}-${id}`);
+                const likeIcon = document.querySelector(`#like-btn-${collection}-${id} .like-heart`);
+                if (likeCounter) likeCounter.innerText = item.likes || 0;
+                
+                // Agar user like bosgan bo'lsa icon rangini o'zgartirish
+                if (localStorage.getItem(`liked_${collection}_${id}`) && likeIcon) {
+                    likeIcon.classList.add('liked');
+                }
+
+                // Commentlar ro'yxatini yangilash
+                const commentList = document.getElementById(`comment-list-${collection}-${id}`);
+                if (commentList) {
+                    let html = '';
+                    if (!item.comments || item.comments.length === 0) {
+                        html = '<p class="text-gray-400 text-sm text-center py-4">Hozircha fikrlar yo‘q. Birinchi bo‘lib yozing!</p>';
+                    } else {
+                        item.comments.forEach(c => {
+                            html += `
+                                <div class="comment-item animate-fade-in">
+                                    <div class="flex justify-between items-baseline">
+                                        <span class="comment-author">${c.user}</span>
+                                        <span class="comment-date">${c.date}</span>
+                                    </div>
+                                    <p class="comment-text">${c.text}</p>
+                                </div>
+                            `;
+                        });
+                    }
+                    commentList.innerHTML = html;
+                }
+            },
+
+            // HTML Generatsiya qilish (Like tugmasi va Comment formasi)
+            generateHTML: function(collection, id) {
+                const list = AppData[collection];
+                const item = list.find(i => i.id == id);
+                const likes = item.likes || 0;
+                const isLiked = localStorage.getItem(`liked_${collection}_${id}`) ? 'liked' : '';
+                
+                return `
+                    <div class="bg-white dark:bg-gray-800 p-6 rounded-xl mt-4 border border-gray-200 shadow-inner">
+                        <!-- Actions Bar -->
+                        <div class="flex items-center justify-between mb-6 border-b pb-4">
+                            <button id="like-btn-${collection}-${id}" onclick="InteractionManager.toggleLike('${collection}', ${id})" class="flex items-center space-x-2 text-gray-600 hover:text-red-500 transition group focus:outline-none">
+                                <i data-feather="heart" class="like-heart w-8 h-8 ${isLiked}"></i>
+                                <span class="font-bold text-2xl" id="like-count-${collection}-${id}">${likes}</span>
+                            </button>
+                            <span class="text-indigo-600 font-medium flex items-center">
+                                <i data-feather="message-circle" class="w-5 h-5 mr-2"></i>
+                                Fikrlar (${item.comments ? item.comments.length : 0})
+                            </span>
+                        </div>
+
+                        <!-- Comment Inputs -->
+                        <div class="flex flex-col space-y-3 mb-6">
+                            <input type="text" id="comment-name-${collection}-${id}" placeholder="Ismingiz..." class="p-3 rounded-lg border border-gray-300 text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 shadow-sm w-1/2">
+                            <div class="flex space-x-2">
+                                <input type="text" id="comment-text-${collection}-${id}" placeholder="Fikringizni yozing..." class="flex-grow p-3 rounded-lg border border-gray-300 text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 shadow-sm">
+                                <button onclick="InteractionManager.addComment('${collection}', ${id}, document.getElementById('comment-name-${collection}-${id}').value, document.getElementById('comment-text-${collection}-${id}').value)" class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 rounded-lg text-sm font-bold transition shadow-md flex items-center">
+                                    <i data-feather="send" class="w-4 h-4 mr-2"></i> Yuborish
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Comments List -->
+                        <div id="comment-list-${collection}-${id}" class="comment-box custom-scrollbar">
+                            <!-- JS orqali to'ldiriladi -->
+                        </div>
+                    </div>
+                `;
+            }
+        };
+
+        // ---------------------------------------------------------
+        // RENDER FUNKSIYALAR (DYNAMIC)
+        // ---------------------------------------------------------
+
+        window.renderAdministration = function() {
+            let html = '';
+            AppData.rahbariyat.forEach((item) => {
+                html += `
+                    <div class="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-2xl transition duration-300 border border-gray-100 group" data-aos="fade-up">
+                        <div class="h-20 bg-gradient-to-r from-indigo-600 to-blue-500"></div>
+                        <div class="px-6 -mt-10 text-center pb-6">
+                            <div class="w-24 h-24 mx-auto rounded-full border-4 border-white shadow-lg overflow-hidden bg-white">
+                                <img src="${item.rasm}" onerror="this.src='https://via.placeholder.com/150?text=Rasm+Yoq'" class="w-full h-full object-cover">
+                            </div>
+                            <h3 class="mt-4 text-lg font-bold text-gray-800 editable-text" id="rahbariyat-ism-${item.id}">${item.ism}</h3>
+                            <p class="text-indigo-600 font-bold text-xs uppercase tracking-wider mb-2 editable-text" id="rahbariyat-lav-${item.id}">${item.lavozim}</p>
+                        </div>
+                    </div>
+                `;
+            });
+            document.getElementById('admin-grid').innerHTML = html;
+        }
+
+        window.renderTeachers = function() {
+            let html = '';
+            AppData.teachers.forEach((item) => {
+                let imgSrc = item.rasm === 'yoq' ? `https://ui-avatars.com/api/?name=${item.ism}&background=random` : item.rasm;
+                html += `
+                    <div class="bg-white p-4 rounded-lg shadow hover:shadow-xl transition transform hover:-translate-y-1 border-l-4 border-indigo-500 flex items-center space-x-4" data-aos="zoom-in">
+                        <div class="w-16 h-16 flex-shrink-0 rounded-full overflow-hidden border-2 border-gray-200">
+                            <img src="${imgSrc}" onerror="this.src='https://ui-avatars.com/api/?name=${item.ism}&background=random'" class="w-full h-full object-cover">
+                        </div>
+                        <div>
+                            <h4 class="font-bold text-gray-800 text-lg leading-tight editable-text" id="teacher-name-${item.id}">${item.ism}</h4>
+                            <p class="text-sm text-indigo-600 font-medium editable-text" id="teacher-fan-${item.id}">${item.fan}</p>
+                            <div class="flex items-center text-xs text-gray-500 mt-1">
+                                <i data-feather="briefcase" class="w-3 h-3 mr-1"></i> ${item.tajriba}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            document.getElementById('all-teachers-grid').innerHTML = html;
+        }
+
+        window.renderVeterans = function() {
+            let html = '';
+            AppData.veterans.forEach((item) => {
+                 let imgSrc = item.rasm === 'yoq' ? `https://ui-avatars.com/api/?name=${item.ism}&background=333&color=fff` : item.rasm;
+                html += `
+                    <div class="bg-gray-50 rounded-xl p-6 shadow-md text-center hover:bg-white hover:shadow-xl transition border border-gray-200 group" data-aos="flip-left">
+                        <div class="relative w-24 h-24 mx-auto mb-4 rounded-full overflow-hidden border-4 border-gray-300 group-hover:border-yellow-500 transition-colors">
+                            <img src="${imgSrc}" onerror="this.src='https://ui-avatars.com/api/?name=${item.ism}'" class="w-full h-full object-cover grayscale group-hover:grayscale-0 transition duration-500">
+                        </div>
+                        <h3 class="text-lg font-bold text-gray-800 editable-text" id="vet-name-${item.id}">${item.ism}</h3>
+                        <p class="text-sm text-gray-600 mb-2 font-medium editable-text" id="vet-year-${item.id}">${item.yillar}</p>
+                        <span class="inline-block bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded-full font-semibold">Faxriy</span>
+                    </div>
+                `;
+            });
+            document.getElementById('veterans-grid').innerHTML = html;
+        }
+
+        window.renderTopTeachers = function() {
+            let html = '';
+            for(let i=0; i<3 && i<AppData.teachers.length; i++) {
+                let t = AppData.teachers[i];
+                html += `
+                <div class="bg-gray-50 rounded-xl shadow-lg overflow-hidden border border-gray-200 hover:shadow-xl transition duration-300" data-aos="flip-up">
+                    <div class="p-6 text-center">
+                        <div class="w-32 h-32 mx-auto rounded-full overflow-hidden mb-4 border-4 border-indigo-400 shadow-md">
+                            <img src="${t.rasm}" onerror="this.src='https://ui-avatars.com/api/?name=${t.ism}'" class="w-full h-full object-cover object-top">
+                        </div>
+                        <h3 class="font-bold text-lg mb-1 text-indigo-800">${t.ism}</h3>
+                        <p class="text-md text-gray-600 font-medium mb-3">${t.fan} o‘qituvchisi</p>
+                        <p class="text-sm text-gray-500">${t.tajriba} tajriba</p>
+                    </div>
+                </div>`;
+            }
+            document.getElementById('top-teachers-list').innerHTML = html;
+        }
+
+        window.renderOlympiad = function() {
+            let html = '';
+            AppData.olympiad.forEach((item) => {
+                let imgSrc = item.rasm ? item.rasm : `https://ui-avatars.com/api/?name=${item.ism}&background=random`;
+                html += `
+                    <div class="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200 flex flex-col group hover:shadow-2xl transition-all duration-300" data-aos="fade-up">
+                        <div class="relative h-64 overflow-hidden">
+                            <img src="${imgSrc}" onerror="this.src='https://ui-avatars.com/api/?name=${item.ism}'" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110">
+                            <div class="absolute top-0 right-0 bg-yellow-400 text-white font-bold px-3 py-1 rounded-bl-lg shadow-md">
+                                ${item.orin}
+                            </div>
+                        </div>
+                        <div class="p-6 flex-grow">
+                            <h3 class="text-xl font-bold text-gray-900 mb-2 editable-text" id="oly-name-${item.id}">${item.ism}</h3>
+                            <div class="space-y-2">
+                                <div class="flex items-center text-gray-600">
+                                    <i data-feather="user" class="w-4 h-4 mr-2 text-indigo-500"></i>
+                                    <span class="font-medium editable-text" id="oly-sinf-${item.id}">${item.sinf} sinf</span>
+                                </div>
+                                <div class="flex items-center text-gray-600">
+                                    <i data-feather="book" class="w-4 h-4 mr-2 text-indigo-500"></i>
+                                    <span class="font-medium editable-text" id="oly-fan-${item.id}">${item.fan}</span>
+                                </div>
+                                <div class="flex items-center text-gray-600">
+                                    <i data-feather="award" class="w-4 h-4 mr-2 text-indigo-500"></i>
+                                    <span class="font-medium editable-text" id="oly-bosqich-${item.id}">${item.bosqich} bosqichi</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            document.getElementById('olympiad-grid').innerHTML = html;
+        }
+
+        window.renderSchoolRooms = function() {
+            let html = '';
+            AppData.rooms.forEach((room, index) => {
+                 html += `
+                    <div onclick="openRoomModal(${index})" class="bg-white rounded-lg shadow-md p-4 cursor-pointer hover:bg-indigo-50 hover:shadow-lg transition flex items-center justify-between border-l-4 border-indigo-400" data-aos="fade-up">
+                        <span class="font-bold text-gray-800 text-lg editable-text" id="room-nom-${room.id}">${room.nom}</span>
+                        <i data-feather="eye" class="text-indigo-500"></i>
+                    </div>
+                `;
+            });
+            document.getElementById('rooms-grid').innerHTML = html;
+        }
+
+        // --- YANGI: BITIRUVCHILARNI RENDER QILISH (LIKE & COMMENT BILAN) ---
+        window.renderGraduatesSetup = function() {
+            const container = document.getElementById('years-container');
+            if(!container) return;
+            
+            // Yillarni saralash va unique qilish
+            const years = [...new Set(AppData.graduates.map(g => g.yil))].sort();
+            
+            let html = '';
+            years.forEach(year => {
+                html += `<button id="btn-year-${year}" onclick="selectGradYear('${year}')" class="year-btn bg-gray-200 hover:bg-indigo-100 text-gray-800 font-bold py-2 px-6 rounded-lg transition duration-200 shadow-sm">${year}</button>`;
+            });
+            
+            container.innerHTML = html;
+        }
+        
+        let selectedYear = null;
+        window.selectGradYear = function(year) {
+            selectedYear = year;
+            // Yil tugmasini active qilish
+            document.querySelectorAll('.year-btn').forEach(btn => btn.classList.remove('btn-active'));
+            const yearBtn = document.getElementById(`btn-year-${year}`);
+            if(yearBtn) yearBtn.classList.add('btn-active');
+
+            // Shu yilga tegishli sinflarni topish
+            const classes = AppData.graduates.filter(g => g.yil === year).sort((a, b) => a.sinf.localeCompare(b.sinf));
+            
+            const classContainer = document.getElementById('class-selection-container');
+            let html = '';
+            
+            if(classes.length === 0) {
+                html = '<p class="text-gray-500">Bu yilda bitiruvchilar kiritilmagan.</p>';
+            } else {
+                classes.forEach(item => {
+                    // Argumentga ID ni ham qo'shamiz
+                    html += `<button onclick="selectGradClass('${item.video}', '${item.sinf}', ${item.id})" class="class-btn bg-white border-2 border-indigo-500 text-indigo-700 hover:bg-indigo-500 hover:text-white font-bold py-2 px-8 rounded-full transition duration-200 shadow-md mr-2 mb-2">${item.sinf} Sinf</button>`;
+                });
+            }
+            
+            classContainer.innerHTML = html;
+            classContainer.classList.remove('hidden');
+            classContainer.classList.add('flex', 'flex-wrap', 'justify-center');
+            
+            // Videoni yashirish
+            document.getElementById('grad-video-container').classList.add('hidden');
+        }
+
+        window.selectGradClass = function(videoSrc, className, id) {
+            // Sinf tugmasini active qilish
+            document.querySelectorAll('.class-btn').forEach(btn => {
+                btn.classList.remove('btn-active');
+                if(btn.innerText.includes(className)) btn.classList.add('btn-active');
+            });
+
+            const videoContainer = document.getElementById('grad-video-container');
+            const videoPlayer = document.getElementById('grad-video-player');
+            const interactionArea = document.getElementById('grad-interaction-area');
+            
+            videoPlayer.src = videoSrc;
+            videoContainer.classList.remove('hidden');
+            
+            // Interaction (Like & Comment) HTML ni generatsiya qilish
+            interactionArea.innerHTML = InteractionManager.generateHTML('graduates', id);
+            
+            // Iconlarni yangilash
+            feather.replace();
+            
+            // Izohlarni yuklash
+            InteractionManager.updateUI('graduates', id);
+            
+            videoPlayer.play().catch(e => console.log("Video avtomatik yurmadi"));
+        }
+
+        window.renderNews = function() {
+            let html = '';
+            AppData.news.forEach((item) => {
+                html += `
+                    <div class="overflow-hidden rounded-lg shadow-lg h-64 group relative bg-black">
+                        <img src="${item.rasm}" onerror="this.src='https://via.placeholder.com/400x300?text=Rasm+Topilmadi'" class="w-full h-full object-cover transition duration-500 group-hover:scale-110 group-hover:opacity-70">
+                        <div class="absolute bottom-0 left-0 w-full p-4 bg-gradient-to-t from-black to-transparent">
+                            <h4 class="text-white font-bold text-lg">${item.nom}</h4>
+                            <p class="text-gray-300 text-sm truncate">${item.description}</p>
+                        </div>
+                    </div>
+                `;
+            });
+            const newsGrid = document.getElementById('news-grid');
+            if(newsGrid) newsGrid.innerHTML = html;
+        }
+
+        // --- YANGI: TADBIRLAR (LIKE & COMMENT BILAN) ---
+        window.renderEvents = function() {
+            let html = '';
+            AppData.events.forEach((item) => {
+                const interactionHTML = InteractionManager.generateHTML('events', item.id);
+                html += `
+                    <div class="bg-white rounded-xl shadow-2xl overflow-hidden mb-8 transform transition hover:shadow-3xl" data-aos="fade-up">
+                        <div class="relative bg-black">
+                            <video controls class="w-full h-80 object-cover">
+                                <source src="${item.video}" type="video/mp4">
+                            </video>
+                        </div>
+                        <div class="p-6">
+                            <h3 class="font-bold text-2xl text-gray-900 mb-2 editable-text">${item.nom}</h3>
+                            <p class="text-gray-600 text-sm mb-4 leading-relaxed">${item.description}</p>
+                            
+                            <!-- Interaction Section Integrated -->
+                            ${interactionHTML}
+                        </div>
+                    </div>
+                `;
+            });
+            
+            const eventsGrid = document.getElementById('events-grid');
+            const eventsPageGrid = document.getElementById('events-grid-page');
+            
+            if(eventsGrid) {
+                eventsGrid.innerHTML = html;
+            }
+            if(eventsPageGrid) {
+                 eventsPageGrid.innerHTML = html;
+            }
+
+            // Sahifa yuklangandan keyin izohlarni yangilash
+            setTimeout(() => {
+                AppData.events.forEach(item => InteractionManager.updateUI('events', item.id));
+                feather.replace();
+            }, 100);
+        }
+        
+        window.renderAdmission = function() {
+            let html = '';
+            AppData.admission.forEach((item) => {
+                html += `
+                    <div class="bg-gray-50 rounded-xl shadow-xl overflow-hidden mb-6">
+                        <div class="relative pb-[56.25%] h-0"> 
+                            <iframe class="absolute top-0 left-0 w-full h-full" src="${item.video}" frameborder="0" allowfullscreen></iframe>
+                        </div>
+                        <div class="p-4 text-center">
+                            <h3 class="font-bold text-xl mb-2">${item.nom}</h3>
+                            <p>${item.description}</p>
+                        </div>
+                    </div>
+                `;
+            });
+            const admissionContainer = document.getElementById('admission-container');
+            if(admissionContainer) admissionContainer.innerHTML = html;
+        }
+
+        window.openRoomModal = function(index) {
+            const room = AppData.rooms[index];
+            const modal = document.getElementById('room-modal');
+            const content = document.getElementById('modal-body-content');
+            
+            content.innerHTML = `
+                <h3 class="text-2xl font-bold text-gray-900 mb-4">${room.nom}</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <img src="${room.rasm}" onerror="this.src='https://via.placeholder.com/400x300?text=Rasm'" class="w-full h-64 object-cover rounded-lg shadow-md">
+                    <div class="bg-black rounded-lg overflow-hidden h-64">
+                         <video controls class="w-full h-full object-cover">
+                            <source src="${room.video}" type="video/mp4">
+                        </video>
+                    </div>
+                </div>
+            `;
+            modal.style.display = "flex";
+        }
+
+        window.closeRoomModal = function() {
+            const modal = document.getElementById('room-modal');
+            const video = modal.querySelector('video');
+            if(video) video.pause();
+            modal.style.display = "none";
+        }
+
+        window.openCreatorsModal = function() {
+            const sidebar = document.getElementById('settings-sidebar');
+            if (!sidebar.classList.contains('translate-x-full')) {
+                toggleSidebar();
+            }
+
+            const modal = document.getElementById('creators-modal');
+            const grid = document.getElementById('creators-grid');
+            let html = '';
+
+            AppData.creators.forEach(person => {
+                 html += `
+                    <div class="text-center group" data-aos="zoom-in">
+                        <div class="w-24 h-24 mx-auto rounded-full overflow-hidden border-4 border-indigo-500 mb-4 shadow-lg transition-transform duration-300 group-hover:scale-105">
+                            <img src="${person.rasm}" onerror="this.src='https://ui-avatars.com/api/?name=${person.ism}+${person.familiya}&background=random'" class="w-full h-full object-cover">
+                        </div>
+                        <h4 class="font-bold text-lg text-gray-800">${person.ism}</h4>
+                        <p class="text-indigo-600 font-medium">${person.familiya}</p>
+                    </div>
+                `;
+            });
+
+            grid.innerHTML = html;
+            modal.style.display = "flex";
+        }
+
+        window.closeCreatorsModal = function() {
+            document.getElementById('creators-modal').style.display = "none";
+        }
+
+        // --- NAVBAR VA SOZLAMALAR ---
+        class CustomNavbar extends HTMLElement {
+            connectedCallback() {
+                this.innerHTML = `
+                    <div class="fixed top-0 left-0 w-full z-50 pointer-events-none">
+                        <!-- Header (Logo qismi) -->
+                        <div class="pointer-events-auto bg-white/90 backdrop-blur-md shadow-sm border-b border-gray-100 flex items-center justify-between px-6 py-4">
+                            <a href="#bosh-sahifa" onclick="showSection('bosh-sahifa')" class="text-2xl font-extrabold text-indigo-700 editable-text">10-Maktab</a>
+                        </div>
+                        
+                        <!-- BURCHAKDAGI MENU TUGMASI -->
+                        <div class="absolute top-4 right-4 pointer-events-auto">
+                            <button onclick="toggleSidebar()" class="bg-indigo-600 hover:bg-indigo-700 text-white p-3 rounded-full shadow-lg transition transform hover:scale-110 focus:outline-none">
+                                <i data-feather="menu" class="w-6 h-6"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- SIDEBAR (MENYU + SOZLAMALAR) -->
+                    <div id="settings-sidebar" class="fixed top-0 right-0 h-full w-80 bg-white shadow-2xl z-[60] transform translate-x-full overflow-y-auto">
+                        <div class="p-6">
+                            <div class="flex items-center justify-between mb-8 border-b pb-4">
+                                <h2 class="text-xl font-bold text-gray-800">Menyu</h2>
+                                <button onclick="toggleSidebar()" class="text-gray-500 hover:text-red-500">
+                                    <i data-feather="x" class="w-6 h-6"></i>
+                                </button>
+                            </div>
+
+                            <!-- Navigatsiya -->
+                            <nav class="space-y-3 mb-8">
+                                <button onclick="menuAction('bosh-sahifa')" class="w-full text-left flex items-center p-3 rounded-lg hover:bg-indigo-50 text-gray-700 font-semibold transition">
+                                    <i data-feather="home" class="w-5 h-5 mr-3 text-indigo-500"></i> Bosh sahifa
+                                </button>
+                                <button onclick="menuAction('maktab-tarixi-page')" class="w-full text-left flex items-center p-3 rounded-lg hover:bg-indigo-50 text-gray-700 font-semibold transition">
+                                    <i data-feather="clock" class="w-5 h-5 mr-3 text-indigo-500"></i> Maktab Tarixi
+                                </button>
+                                <button onclick="menuAction('yangiliklar-page')" class="w-full text-left flex items-center p-3 rounded-lg hover:bg-indigo-50 text-gray-700 font-semibold transition">
+                                    <i data-feather="rss" class="w-5 h-5 mr-3 text-indigo-500"></i> Yangiliklar
+                                </button>
+                                <button onclick="menuAction('rooms-page')" class="w-full text-left flex items-center p-3 rounded-lg hover:bg-indigo-50 text-gray-700 font-semibold transition">
+                                    <i data-feather="grid" class="w-5 h-5 mr-3 text-indigo-500"></i> Maktab Honalari
+                                </button>
+                                
+                                <div class="border-t my-2"></div>
+                                
+                                <button onclick="menuAction('rahbariyat-page')" class="w-full text-left flex items-center p-3 rounded-lg hover:bg-indigo-50 text-gray-700 font-semibold transition">
+                                    <i data-feather="users" class="w-5 h-5 mr-3 text-indigo-500"></i> Rahbariyat
+                                </button>
+                                <button onclick="menuAction('teachers-page')" class="w-full text-left flex items-center p-3 rounded-lg hover:bg-indigo-50 text-gray-700 font-semibold transition">
+                                    <i data-feather="book-open" class="w-5 h-5 mr-3 text-indigo-500"></i> O'qituvchilar
+                                </button>
+                                <button onclick="menuAction('faxriylar-page')" class="w-full text-left flex items-center p-3 rounded-lg hover:bg-indigo-50 text-gray-700 font-semibold transition">
+                                    <i data-feather="award" class="w-5 h-5 mr-3 text-indigo-500"></i> Fahriylar
+                                </button>
+                                
+                                <div class="border-t my-2"></div>
+
+                                <button onclick="menuAction('videos-page')" class="w-full text-left flex items-center p-3 rounded-lg hover:bg-indigo-50 text-gray-700 font-semibold transition">
+                                    <i data-feather="film" class="w-5 h-5 mr-3 text-indigo-500"></i> Tadbirlar
+                                </button>
+                                <button onclick="menuAction('bitiruvchilar-page')" class="w-full text-left flex items-center p-3 rounded-lg hover:bg-indigo-50 text-gray-700 font-semibold transition">
+                                    <i data-feather="check-circle" class="w-5 h-5 mr-3 text-indigo-500"></i> Bitiruvchilar
+                                </button>
+                                <button onclick="menuAction('qabul-page')" class="w-full text-left flex items-center p-3 rounded-lg hover:bg-indigo-50 text-gray-700 font-semibold transition">
+                                    <i data-feather="user-plus" class="w-5 h-5 mr-3 text-indigo-500"></i> Qabul
+                                </button>
+
+                                <div class="border-t my-2"></div>
+
+                                <button onclick="openCreatorsModal()" class="w-full text-left flex items-center p-3 rounded-lg hover:bg-indigo-50 text-gray-700 font-semibold transition">
+                                    <i data-feather="code" class="w-5 h-5 mr-3 text-indigo-500"></i> Yaratuvchilar
+                                </button>
+
+                            </nav>
+
+                            <!-- SOZLAMALAR QISMI -->
+                            <div class="bg-gray-50 rounded-xl p-4 border border-gray-200">
+                                <h3 class="font-bold text-gray-800 mb-4 flex items-center">
+                                    <i data-feather="settings" class="w-4 h-4 mr-2"></i> Sozlamalar
+                                </h3>
+                                
+                                <div class="flex items-center justify-between mb-4">
+                                    <span class="text-sm font-medium text-gray-700">Tungi rejim</span>
+                                    <button onclick="toggleNightMode()" id="night-mode-btn" class="w-12 h-6 rounded-full bg-gray-300 relative transition duration-300 focus:outline-none">
+                                        <div id="night-mode-circle" class="w-4 h-4 bg-white rounded-full absolute top-1 left-1 transition-all duration-300 shadow-sm"></div>
+                                    </button>
+                                </div>
+
+                                <div class="mb-2">
+                                    <div class="flex justify-between mb-2">
+                                        <span class="text-sm font-medium text-gray-700">Harf kattaligi</span>
+                                        <span class="text-xs text-gray-500" id="font-size-label">100%</span>
+                                    </div>
+                                    <input type="range" min="80" max="130" value="100" class="w-full h-2 bg-gray-300 rounded-lg appearance-none cursor-pointer" oninput="changeFontSize(this.value)">
+                                    <div class="flex justify-between text-xs text-gray-400 mt-1">
+                                        <span>A-</span>
+                                        <span>A+</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+                    
+                    <div id="sidebar-overlay" onclick="toggleSidebar()" class="fixed inset-0 bg-black bg-opacity-50 z-[55] hidden transition-opacity opacity-0"></div>
+                `;
+            }
+        }
+        customElements.define('custom-navbar', CustomNavbar);
+
+        window.toggleSidebar = function() {
+            const sidebar = document.getElementById('settings-sidebar');
+            const overlay = document.getElementById('sidebar-overlay');
+            
+            if (sidebar.classList.contains('translate-x-full')) {
+                sidebar.classList.remove('translate-x-full');
+                overlay.classList.remove('hidden');
+                setTimeout(() => overlay.classList.remove('opacity-0'), 10);
+            } else {
+                sidebar.classList.add('translate-x-full');
+                overlay.classList.add('opacity-0');
+                setTimeout(() => overlay.classList.add('hidden'), 300);
+            }
+        }
+
+        window.menuAction = function(sectionId) {
+            showSection(sectionId);
+            toggleSidebar();
+        }
+
+        window.toggleNightMode = function() {
+            const body = document.body;
+            const btn = document.getElementById('night-mode-btn');
+            const circle = document.getElementById('night-mode-circle');
+
+            body.classList.toggle('night-mode');
+            
+            if (body.classList.contains('night-mode')) {
+                btn.classList.remove('bg-gray-300');
+                btn.classList.add('bg-indigo-600');
+                circle.style.transform = 'translateX(24px)';
+            } else {
+                btn.classList.remove('bg-indigo-600');
+                btn.classList.add('bg-gray-300');
+                circle.style.transform = 'translateX(0)';
+            }
+        }
+
+        window.changeFontSize = function(val) {
+            const percentage = val + '%';
+            document.documentElement.style.fontSize = val + '%';
+            document.body.style.zoom = (val / 100); 
+            document.getElementById('font-size-label').innerText = percentage;
+        }
+
+        // Footer
+        class CustomFooter extends HTMLElement {
+            connectedCallback() {
+                this.innerHTML = `
+                    <footer id="aloqa-footer" class="bg-gray-900 text-white py-12 mt-16 border-t border-indigo-700">
+                        <div class="container mx-auto px-4 max-w-7xl">
+                            <div class="grid md:grid-cols-4 gap-8">
+                                <div>
+                                    <h3 class="text-xl font-bold text-indigo-400 mb-4 editable-text">10-Maktab</h3>
+                                    <p class="text-gray-400 text-sm editable-text">Kelajak avlod uchun sifatli ta'lim va tarbiya.</p>
+                                </div>
+                                <div>
+                                    <h3 class="text-xl font-bold text-indigo-400 mb-4 editable-text">Tezkor Havolalar</h3>
+                                    <ul class="space-y-2">
+                                        <li><a href="#" onclick="showSection('rahbariyat-page')" class="text-gray-400 hover:text-white transition editable-text">Rahbariyat</a></li>
+                                        <li><a href="#" onclick="showSection('teachers-page')" class="text-gray-400 hover:text-white transition editable-text">O‘qituvchilar</a></li>
+                                        <li><a href="#" onclick="showSection('faxriylar-page')" class="text-gray-400 hover:text-white transition editable-text">Fahriylar</a></li>
+                                    </ul>
+                                </div>
+                                <div>
+                                    <h3 class="text-xl font-bold text-indigo-400 mb-4 editable-text">Aloqa</h3>
+                                    <p class="text-gray-400 mb-2 editable-text">Manzil: To'rtko'l tumani 10 maktab</p>
+                                    <p class="text-gray-400 mb-2 editable-text">Telefon: +998 (88) 474-81-20</p>
+                                    <p class="text-gray-400 mb-2 editable-text">Telefon: +998 (94) 598-07-47</p>
+                                </div>
+                                <div>
+                                    <h3 class="text-xl font-bold text-indigo-400 mb-4 editable-text">Ijtimoiy tarmoqlar</h3>
+                                    <div class="flex space-x-4">
+                                        <a href="https://instagram.com/begi_1308" target="_blank" class="text-gray-400 hover:text-indigo-400">
+                                            <i data-feather="instagram" class="w-6 h-6"></i>
+                                        </a>
+                                        <a href="https://t.me/begzad_abdunazarov" target="_blank" class="text-gray-400 hover:text-indigo-400">
+                                            <i data-feather="send" class="w-6 h-6"></i>
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="text-center mt-8 border-t border-gray-700 pt-6">
+                                <p class="text-gray-500 text-sm editable-text">&copy; 2025 10-Maktab. Barcha huquqlar himoyalangan.</p>
+                            </div>
+                        </div>
+                    </footer>
+                `;
+            }
+        }
+        customElements.define('custom-footer', CustomFooter);
+
+        window.showSection = function(targetId) {
+            const allSections = document.querySelectorAll('.page-content-wrapper');
+            let isFound = false;
+            allSections.forEach(section => {
+                if (section.id === targetId) {
+                    section.classList.add('active');
+                    isFound = true;
+                } else {
+                    section.classList.remove('active');
+                }
+            });
+            if (targetId === 'bosh-sahifa' || isFound) { window.scrollTo({ top: 0, behavior: 'smooth' }); }
+            setTimeout(() => AOS.refreshHard(), 100);
+        }
+    </script>
+</head>
+
+<body class="bg-gray-50 text-gray-800" onload="AOS.init({once: true});">
+
+    <!-- KIRISH ANIMATSIYASI (PRELOADER) -->
+    <div id="preloader">
+        <div class="loader-logo"></div>
+        <div class="loader-text">10-MAKTAB</div>
+        <p class="text-gray-400 mt-4 font-medium">Sifatli ta'lim maskani...</p>
+    </div>
+
+    <custom-navbar></custom-navbar>
+    
+    <main class="container mx-auto px-4 max-w-7xl pt-24">
+
+        <!-- BOSH SAHIFA -->
+        <div id="bosh-sahifa" class="page-content-wrapper active">
+
+            <section class="min-h-[70vh] flex items-center justify-center text-center bg-white rounded-xl shadow-2xl p-8 mb-16">
+                <div class="max-w-4xl" data-aos="fade-up">
+                    <h1 class="text-5xl md:text-6xl font-extrabold text-indigo-700 mb-4 leading-tight editable-text">
+                        10-Maktabga Xush Kelibsiz!
+                    </h1>
+                    <p class="text-xl text-gray-600 mb-8 editable-text">
+                        10-Maktab - Bu yerda har bir o'quvchi o'z salohiyatini to'liq ro'yobga chiqaradi.
+                    </p>
+                    <button onclick="showSection('maktab-tarixi-page')" class="inline-flex items-center bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-8 rounded-full shadow-lg transition transform hover:scale-105">
+                        <span class="editable-text">Maktab Tarixi bilan tanishish</span> <i data-feather="arrow-right" class="w-5 h-5 ml-2"></i>
+                    </button>
+                </div>
+            </section>
+
+            <section class="py-16" id="faxrli-oquvchilar" data-aos="fade-up">
+                <h2 class="text-4xl font-bold text-center text-indigo-700 mb-12 editable-text">🌟 Faxrli o'quvchilarimiz</h2>
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+                    
+                    <!-- 1 -->
+                    <div class="bg-white rounded-xl shadow-xl overflow-hidden text-center p-6 border-t-4 border-yellow-500" data-aos="zoom-in">
+                        <div class="w-32 h-32 mx-auto rounded-full overflow-hidden mb-4 border-4 border-yellow-300">
+                            <img src="Maya xaldurdiyeva.jpg" onerror="this.src='https://ui-avatars.com/api/?name=Maya'" class="w-full h-full object-cover">
+                        </div>
+                        <h3 class="font-bold text-xl mb-1 editable-text">Xaldurdiyeva Maya</h3>
+                        <p class="text-indigo-600 font-medium mb-3 editable-text">11-"B" sinf</p>
+                        <p class="text-sm text-gray-600 editable-text">O'zbek tili olimpiadasi **3-o‘rin**</p>
+                    </div>
+
+                    <!-- 2 -->
+                    <div class="bg-white rounded-xl shadow-xl overflow-hidden text-center p-6 border-t-4 border-indigo-500" data-aos="zoom-in">
+                        <div class="w-32 h-32 mx-auto rounded-full overflow-hidden mb-4 border-4 border-indigo-300">
+                            <img src="photo_2025-11-18_10-15-44.jpg" onerror="this.src='https://ui-avatars.com/api/?name=Ruhshona'" class="w-full h-full object-cover">
+                        </div>
+                        <h3 class="font-bold text-xl mb-1 editable-text">Gurbanmamedova Ruhshona</h3>
+                        <p class="text-indigo-600 font-medium mb-3 editable-text">11-"A" sinf</p>
+                        <p class="text-sm text-gray-600 editable-text">Nemis tili olimpiadasi **2-o‘rin**</p>
+                    </div>
+                    
+                    <!-- 3 -->
+                    <div class="bg-white rounded-xl shadow-xl overflow-hidden text-center p-6 border-t-4 border-red-500" data-aos="zoom-in">
+                        <div class="w-32 h-32 mx-auto rounded-full overflow-hidden mb-4 border-4 border-red-300">
+                            <img src="DSC_0619.JPG" onerror="this.src='https://ui-avatars.com/api/?name=Aylar'" class="w-full h-full object-cover">
+                        </div>
+                        <h3 class="font-bold text-xl mb-1 editable-text">Azatbayeva Aylar</h3>
+                        <p class="text-indigo-600 font-medium mb-3 editable-text">10-"D" sinf</p>
+                        <p class="text-sm text-gray-600 editable-text">Nemis tili tuman **3-o'rin**</p>
+                    </div>
+
+                    <!-- 4 -->
+                    <div class="bg-white rounded-xl shadow-xl overflow-hidden text-center p-6 border-t-4 border-green-500" data-aos="zoom-in">
+                        <div class="w-32 h-32 mx-auto rounded-full overflow-hidden mb-4 border-4 border-green-300">
+                            <img src="DSC_0183.JPG" onerror="this.src='https://ui-avatars.com/api/?name=Nargiza'" class="w-full h-full object-cover">
+                        </div>
+                        <h3 class="font-bold text-xl mb-1 editable-text">Arazgeldiyeva Nargiza</h3>
+                        <p class="text-indigo-600 font-medium mb-3 editable-text">10-"D" sinf</p>
+                        <p class="text-sm text-gray-600 editable-text">Davlat tili tuman **1-o'rin**</p>
+                    </div>
+
+                    <!-- 5 -->
+                    <div class="bg-white rounded-xl shadow-xl overflow-hidden text-center p-6 border-t-4 border-blue-500" data-aos="zoom-in">
+                        <div class="w-32 h-32 mx-auto rounded-full overflow-hidden mb-4 border-4 border-blue-300">
+                            <img src="Aynur.JPG" onerror="this.src='https://ui-avatars.com/api/?name=Aynur'" class="w-full h-full object-cover">
+                        </div>
+                        <h3 class="font-bold text-xl mb-1 editable-text">Saparklicheva Aynur</h3>
+                        <p class="text-indigo-600 font-medium mb-3 editable-text">10-"B" sinf</p>
+                        <p class="text-sm text-gray-600 editable-text">Teatr truppasi **1-o'rin**</p>
+                    </div>
+
+                    <!-- 6 -->
+                    <div class="bg-white rounded-xl shadow-xl overflow-hidden text-center p-6 border-t-4 border-purple-500" data-aos="zoom-in">
+                        <div class="w-32 h-32 mx-auto rounded-full overflow-hidden mb-4 border-4 border-purple-300">
+                            <img src="Umitjan.JPG" onerror="this.src='https://ui-avatars.com/api/?name=Umitjan'" class="w-full h-full object-cover">
+                        </div>
+                        <h3 class="font-bold text-xl mb-1 editable-text">Niyazgeldiyev Umitjan</h3>
+                        <p class="text-indigo-600 font-medium mb-3 editable-text">10-"A" sinf</p>
+                        <p class="text-sm text-gray-600 editable-text">Teatr truppasi faol a'zosi</p>
+                    </div>
+
+                    <!-- 7 -->
+                    <div class="bg-white rounded-xl shadow-xl overflow-hidden text-center p-6 border-t-4 border-pink-500" data-aos="zoom-in">
+                        <div class="w-32 h-32 mx-auto rounded-full overflow-hidden mb-4 border-4 border-pink-300">
+                            <img src="Artur.JPG" onerror="this.src='https://ui-avatars.com/api/?name=Artur'" class="w-full h-full object-cover">
+                        </div>
+                        <h3 class="font-bold text-xl mb-1 editable-text">Bakarov Artur</h3>
+                        <p class="text-indigo-600 font-medium mb-3 editable-text">11-"B" sinf</p>
+                        <p class="text-sm text-gray-600 editable-text">Teatr truppasi ishtirokchisi</p>
+                    </div>
+
+                    <!-- 8 -->
+                    <div class="bg-white rounded-xl shadow-xl overflow-hidden text-center p-6 border-t-4 border-teal-500" data-aos="zoom-in">
+                        <div class="w-32 h-32 mx-auto rounded-full overflow-hidden mb-4 border-4 border-teal-300">
+                            <img src="Akmurat.JPG" onerror="this.src='https://ui-avatars.com/api/?name=Akmurat'" class="w-full h-full object-cover">
+                        </div>
+                        <h3 class="font-bold text-xl mb-1 editable-text">Atamuratov Akmurat</h3>
+                        <p class="text-indigo-600 font-medium mb-3 editable-text">11-"B" sinf</p>
+                        <p class="text-sm text-gray-600 editable-text">IT bo'yicha yetuk o'quvchi</p>
+                    </div>
+
+                </div>
+            </section>
+
+            <section id="teachers" class="py-16 bg-white rounded-xl shadow-2xl p-8 mb-16" data-aos="fade-up">
+                <h2 class="text-4xl font-bold text-indigo-700 mb-12 text-center editable-text">🧑‍🏫 O'qituvchilarimiz (Top 3)</h2>
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8" id="top-teachers-list">
+                    <!-- JS to'ldiradi -->
+                </div>
+                  <div class="text-center mt-12">
+                      <button onclick="showSection('teachers-page')" class="inline-flex items-center bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-3 px-8 rounded-full shadow-lg transition transform hover:scale-105">
+                          <span class="editable-text">Barcha O'qituvchilar</span> <i data-feather="chevron-right" class="w-5 h-5 ml-2"></i>
+                      </button>
+                  </div>
+            </section>
+
+            <section id="videos" class="py-16">
+                <h2 class="text-4xl font-bold text-indigo-700 mb-12 text-center editable-text" data-aos="fade-up">🎬 So'nggi Tadbirlar</h2>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8" id="events-grid">
+                    <!-- JS to'ldiradi (TADBIRLAR) -->
+                </div>
+                 <div class="text-center mt-12">
+                      <button onclick="showSection('videos-page')" class="inline-flex items-center bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-3 px-8 rounded-full shadow-lg transition transform hover:scale-105">
+                          <span class="editable-text">Barcha Videolar</span> <i data-feather="chevron-right" class="w-5 h-5 ml-2"></i>
+                      </button>
+                  </div>
+            </section>
+        </div> 
+        
+        <!-- MAKTAB TARIXI -->
+        <div id="maktab-tarixi-page" class="page-content-wrapper pt-8">
+            <div class="bg-white p-8 md:p-12 rounded-xl shadow-2xl mb-12" data-aos="fade-in">
+                <h2 class="text-4xl font-bold text-indigo-700 mb-10 border-b-4 border-indigo-500 pb-3 editable-text">📜 Maktab Tarixi</h2>
+                <div class="grid md:grid-cols-2 gap-8 items-start mb-8">
+                    <div>
+                        <p class="text-gray-700 mb-4 leading-relaxed editable-text">10-umumta'lim maktabi 1950-yilda tashkil etilgan. Yillar davomida maktabimiz minglab o'quvchilarga ta'lim va tarbiya berib kelmoqda. Dastlab kichik bino sifatida faoliyat boshlagan maskan bugungi kunda zamonaviy qiyofaga ega.</p>
+                        <ul class="text-gray-700 space-y-3 list-disc list-inside mt-4">
+                            <li class="editable-text"><i data-feather="calendar" class="inline w-5 h-5 text-indigo-500 mr-2"></i> Tashkil topgan yil: 1950</li>
+                            <li class="editable-text"><i data-feather="map-pin" class="inline w-5 h-5 text-indigo-500 mr-2"></i> Manzil: To'rtko'l tumani</li>
+                        </ul>
+                    </div>
+                    <div class="space-y-4">
+                        <div class="rounded-xl overflow-hidden shadow-xl relative group">
+                            <img src="Снимок экрана 2025-12-04 102535.png" alt="Maktab tarixi" class="w-full h-64 object-cover" onerror="this.src='https://via.placeholder.com/600x400?text=Hozirgi+Holat'">
+                            <div class="absolute bottom-0 left-0 w-full bg-black bg-opacity-50 text-white p-2 text-center editable-text">Hozirgi ko'rinishi</div>
+                        </div>
+                        <div class="rounded-xl overflow-hidden shadow-xl relative group">
+                             <img src="section-title.jpg" alt="Maktab tarixi 2019" class="w-full h-64 object-cover grayscale hover:grayscale-0 transition duration-500" onerror="this.src='https://via.placeholder.com/600x400?text=2019+Yil+Holati'">
+                             <div class="absolute bottom-0 left-0 w-full bg-black bg-opacity-50 text-white p-2 text-center editable-text">2019 yilgi ko'rinishi</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- MAKTAB STATISTIKASI -->
+                <div class="bg-indigo-50 rounded-xl p-8 border border-indigo-100 mt-8">
+                    <h3 class="text-2xl font-bold text-center text-indigo-800 mb-6 editable-text">📊 Maktab Statistikasi</h3>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
+                        <div class="p-4 bg-white rounded-lg shadow">
+                            <div class="text-indigo-600 font-bold text-3xl editable-text">1066+</div>
+                            <div class="text-gray-600 text-sm mt-1 editable-text">O'quvchilar</div>
+                        </div>
+                        <div class="p-4 bg-white rounded-lg shadow">
+                            <div class="text-indigo-600 font-bold text-3xl editable-text">80+</div>
+                            <div class="text-gray-600 text-sm mt-1 editable-text">O'qituvchilar</div>
+                        </div>
+                        <div class="p-4 bg-white rounded-lg shadow">
+                            <div class="text-indigo-600 font-bold text-3xl editable-text">40+</div>
+                            <div class="text-gray-600 text-sm mt-1 editable-text">Sinf xonalari</div>
+                        </div>
+                         <div class="p-4 bg-white rounded-lg shadow">
+                            <div class="text-indigo-600 font-bold text-3xl editable-text">90+</div>
+                            <div class="text-gray-600 text-sm mt-1 editable-text">Bitiruvchilar</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="text-center mt-12">
+                     <button onclick="showSection('bosh-sahifa')" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-3 px-6 rounded-full flex items-center mx-auto">
+                         <i data-feather="chevron-left" class="w-5 h-5 mr-2"></i> Orqaga
+                     </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- RAHBARIYAT SAHIFASI -->
+        <div id="rahbariyat-page" class="page-content-wrapper pt-8">
+            <div class="bg-white p-8 rounded-xl shadow-2xl mb-12" data-aos="fade-in">
+                <h2 class="text-4xl font-bold text-indigo-700 mb-4 border-b-4 border-indigo-500 pb-3 editable-text">👔 Maktab Rahbariyati</h2>
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8" id="admin-grid">
+                    <!-- JS to'ldiradi -->
+                </div>
+                <div class="text-center mt-12">
+                     <button onclick="showSection('bosh-sahifa')" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-3 px-6 rounded-full flex items-center mx-auto">
+                         <i data-feather="chevron-left" class="w-5 h-5 mr-2"></i> Orqaga
+                     </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- BARCHA O'QITUVCHILAR SAHIFASI -->
+        <div id="teachers-page" class="page-content-wrapper pt-8">
+            <div class="bg-white p-8 rounded-xl shadow-2xl mb-12" data-aos="fade-in">
+                <h2 class="text-4xl font-bold text-indigo-700 mb-4 border-b-4 border-indigo-500 pb-3 editable-text">📚 Bizning Ustozlarimiz</h2>
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6" id="all-teachers-grid">
+                    <!-- JS to'ldiradi -->
+                </div>
+                <div class="text-center mt-12">
+                     <button onclick="showSection('bosh-sahifa')" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-3 px-6 rounded-full flex items-center mx-auto">
+                         <i data-feather="chevron-left" class="w-5 h-5 mr-2"></i> Orqaga
+                     </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- FAHRIYLAR SAHIFASI -->
+        <div id="faxriylar-page" class="page-content-wrapper pt-8">
+            <div class="bg-white p-8 rounded-xl shadow-2xl mb-12" data-aos="fade-in">
+                <h2 class="text-4xl font-bold text-yellow-600 mb-4 border-b-4 border-yellow-500 pb-3 editable-text">🎖 Faxriy Ustozlar</h2>
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8" id="veterans-grid">
+                    <!-- JS to'ldiradi -->
+                </div>
+                <div class="text-center mt-12">
+                     <button onclick="showSection('bosh-sahifa')" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-3 px-6 rounded-full flex items-center mx-auto">
+                         <i data-feather="chevron-left" class="w-5 h-5 mr-2"></i> Orqaga
+                     </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- MAKTAB HONALARI SAHIFASI -->
+        <div id="rooms-page" class="page-content-wrapper pt-8">
+            <div class="bg-white p-8 rounded-xl shadow-2xl mb-12" data-aos="fade-in">
+                <h2 class="text-4xl font-bold text-indigo-700 mb-10 border-b-4 border-indigo-500 pb-3 editable-text">🏫 Maktab Honalari</h2>
+                <p class="text-gray-600 mb-6 editable-text">Maktabimizdagi mavjud sinf xonalari va maxsus xonalar bilan tanishing. Batafsil ko'rish uchun xona nomiga bosing.</p>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4" id="rooms-grid">
+                    <!-- JS ORQALI TO'LDIRILADI -->
+                </div>
+
+                <div class="text-center mt-12">
+                     <button onclick="showSection('bosh-sahifa')" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-3 px-6 rounded-full flex items-center mx-auto">
+                         <i data-feather="chevron-left" class="w-5 h-5 mr-2"></i> Orqaga
+                     </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODAL UCHUN ELEMENT (Honalari) -->
+        <div id="room-modal" class="modal">
+            <div class="modal-content relative p-6">
+                <span onclick="closeRoomModal()" class="absolute top-2 right-4 text-3xl font-bold text-gray-500 cursor-pointer hover:text-red-500">&times;</span>
+                <div id="modal-body-content">
+                    <!-- JS to'ldiradi -->
+                </div>
+            </div>
+        </div>
+        
+        <!-- YARATUVCHILAR MODALI -->
+        <div id="creators-modal" class="modal">
+            <div class="modal-content relative p-6 max-w-2xl">
+                <span onclick="closeCreatorsModal()" class="absolute top-2 right-4 text-3xl font-bold text-gray-500 cursor-pointer hover:text-red-500">&times;</span>
+                <h3 class="text-2xl font-bold text-center text-indigo-700 mb-6 editable-text">Loyiha Yaratuvchilari</h3>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6" id="creators-grid">
+                    <!-- JS to'ldiradi -->
+                </div>
+            </div>
+        </div>
+
+
+        <!-- YANGILIKLAR VA OLIMPIADA -->
+        <div id="yangiliklar-page" class="page-content-wrapper pt-8">
+             <div class="bg-white p-8 md:p-12 rounded-xl shadow-2xl mb-12" data-aos="fade-in">
+                <h2 class="text-4xl font-bold text-indigo-700 mb-10 border-b-4 border-indigo-500 pb-3 editable-text">📰 Maktab Yangiliklari</h2>
+                
+                <!-- Maktab hayotidan fotolavhalar (Dynamic) -->
+                <div class="mb-12">
+                    <h3 class="text-2xl font-bold text-gray-800 mb-6 editable-text">📸 Maktab hayotidan fotolavhalar</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4" id="news-grid">
+                         <!-- JS Orqali to'ldiriladi -->
+                    </div>
+                </div>
+
+                <!-- Olimpiada Section -->
+                <div class="mb-16">
+                    <h3 class="text-3xl font-bold text-gray-800 mb-8 flex items-center">
+                        <span class="bg-yellow-500 text-white rounded-lg p-2 mr-3"><i data-feather="award"></i></span>
+                        <span class="editable-text">Olimpiada G'oliblari</span>
+                    </h3>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8" id="olympiad-grid">
+                        <!-- JS Orqali to'ldiriladi -->
+                    </div>
+                </div>
+
+                <div class="text-center mt-12">
+                     <button onclick="showSection('bosh-sahifa')" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-3 px-6 rounded-full flex items-center mx-auto">
+                         <i data-feather="chevron-left" class="w-5 h-5 mr-2"></i> Orqaga
+                     </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- QABUL -->
+        <div id="qabul-page" class="page-content-wrapper pt-8">
+            <div class="bg-white p-8 rounded-xl shadow-2xl mb-12" data-aos="fade-in">
+                <h2 class="text-4xl font-bold text-red-600 mb-10 border-b-4 border-red-500 pb-3 editable-text">🍎 Birinchi Sinfga Qabul</h2>
+                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-8" id="admission-container">
+                    <!-- JS Orqali to'ldiriladi -->
+                </div>
+                <div class="text-center mt-12">
+                     <button onclick="showSection('bosh-sahifa')" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-3 px-6 rounded-full flex items-center mx-auto">
+                         <i data-feather="chevron-left" class="w-5 h-5 mr-2"></i> Orqaga
+                     </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- BITIRUVCHILAR (YANGILANGAN: LIKE & COMMENT BILAN) -->
+        <div id="bitiruvchilar-page" class="page-content-wrapper pt-8">
+            <div class="bg-white p-8 rounded-xl shadow-2xl mb-12" data-aos="fade-in">
+                <h2 class="text-4xl font-bold text-indigo-700 mb-10 border-b-4 border-indigo-500 pb-3 editable-text">🎓 Bitiruvchilar</h2>
+                
+                <div class="text-center mb-8">
+                    <p class="text-gray-600 text-lg mb-6 editable-text">Bitiruv yilini va sinfni tanlang:</p>
+                    
+                    <!-- Yillar (Dinamik) -->
+                    <div id="years-container" class="flex flex-wrap justify-center gap-4 mb-6">
+                        <!-- JS orqali to'ldiriladi -->
+                    </div>
+
+                    <!-- Sinflar (Dinamik) -->
+                    <div id="class-selection-container" class="hidden justify-center gap-4 mb-8 transition-all duration-500">
+                         <!-- JS orqali to'ldiriladi -->
+                    </div>
+                </div>
+
+                <!-- Video Joyi va INTERFAOL OYNA -->
+                <div id="grad-video-container" class="hidden max-w-4xl mx-auto">
+                    <div class="bg-black rounded-t-xl overflow-hidden shadow-2xl border-4 border-b-0 border-indigo-100">
+                        <video id="grad-video-player" controls class="w-full h-[400px] object-cover">
+                            <source src="" type="video/mp4">
+                            Video format qo'llab quvvatlanmadi.
+                        </video>
+                        <div class="p-4 bg-white text-center border-b">
+                            <p class="text-indigo-700 font-bold editable-text">Tanlangan sinf bitiruv videosi</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Interaction Area (Like & Comment) -->
+                    <div id="grad-interaction-area" class="border-x border-b border-gray-200 rounded-b-xl shadow-lg bg-white">
+                        <!-- JS Generates Like/Comment UI Here -->
+                    </div>
+                </div>
+
+                <div class="text-center mt-12">
+                     <button onclick="showSection('bosh-sahifa')" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-3 px-6 rounded-full flex items-center mx-auto">
+                         <i data-feather="chevron-left" class="w-5 h-5 mr-2"></i> Orqaga
+                     </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- VIDEOLAR (TADBIRLAR PAGE - LIKE & COMMENT BILAN) -->
+        <div id="videos-page" class="page-content-wrapper pt-8">
+            <div class="bg-white p-8 rounded-xl shadow-2xl mb-12" data-aos="fade-in">
+                <h2 class="text-4xl font-bold text-indigo-700 mb-10 border-b-4 border-indigo-500 pb-3 editable-text">🎬 Barcha Tadbirlar</h2>
+                 <div class="grid grid-cols-1 md:grid-cols-2 gap-8" id="events-grid-page">
+                     <!-- JS Orqali to'ldiriladi -->
+                </div>
+                <div class="text-center mt-12">
+                     <button onclick="showSection('bosh-sahifa')" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-3 px-6 rounded-full flex items-center mx-auto">
+                         <i data-feather="chevron-left" class="w-5 h-5 mr-2"></i> Orqaga
+                     </button>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <custom-footer></custom-footer>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // KIRISH ANIMATSIYASINI BOSHQARISH
+            setTimeout(() => {
+                const preloader = document.getElementById('preloader');
+                preloader.classList.add('preloader-hidden');
+            }, 1800); // 1.8 soniyadan keyin sayt ochiladi
+
+            feather.replace(); 
+            AOS.init({ once: true, duration: 800 });
+
+            // LOCALSTORAGE DAN MATNLARNI YUKLASH
+            adminApp.loadContent();
+
+            renderAdministration();
+            renderTeachers();
+            renderVeterans();
+            renderTopTeachers();
+            renderOlympiad();
+            renderSchoolRooms(); 
+            renderNews();
+            renderEvents();
+            renderAdmission();
+            renderGraduatesSetup(); 
+
+            // ADMIN FUNKSIYALARI CHAQIRILGANDAN KEYIN QAYTA YUKLASH
+            setTimeout(() => {
+                adminApp.loadContent(); 
+            }, 500);
+
+            const initialHash = window.location.hash.substring(1);
+            showSection(initialHash || 'bosh-sahifa');
+        });
+
+        // Modallarni tashqarisiga bosganda yopish
+        window.onclick = function(event) {
+            const roomModal = document.getElementById('room-modal');
+            const creatorsModal = document.getElementById('creators-modal');
+            const dataModal = document.getElementById('admin-data-modal'); // Admin modal
+
+            if (event.target == roomModal) closeRoomModal();
+            if (event.target == creatorsModal) closeCreatorsModal();
+            if (event.target == dataModal) adminApp.closeDataModal();
+        }
+    </script>
+
+    <!-- ==================================================================================================== -->
+    <!-- SUPER ADMIN PANEL KODI - BU QISM BARCHA MA'LUMOTLARNI BOSHQARISH IMKONIYATINI BERADI -->
+    <!-- ==================================================================================================== -->
+    <style id="admin-style">
+        #admin-panel-root {
+            position: fixed; z-index: 9999; font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
+            display: none; /* Standart holatda yashirin */
+        }
+        .admin-toggle-btn {
+            position: fixed; bottom: 20px; left: 20px;
+            background: linear-gradient(135deg, #4f46e5, #3b82f6);
+            color: white; border: none; border-radius: 50%; width: 60px; height: 60px;
+            cursor: pointer; box-shadow: 0 4px 15px rgba(79, 70, 229, 0.4);
+            display: flex; align-items: center; justify-content: center;
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .admin-toggle-btn:hover { transform: scale(1.1) rotate(90deg); }
+        
+        .admin-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(5px);
+            display: none; align-items: center; justify-content: center; z-index: 10000;
+        }
+        
+        /* Modern Admin Sidebar - LEFT SIDE */
+        .admin-sidebar {
+            position: fixed; top: 0; left: 0; width: 360px; height: 100%;
+            background: #0f172a; color: #f1f5f9;
+            box-shadow: 5px 0 25px rgba(0,0,0,0.5);
+            transform: translateX(-100%); transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex; flex-direction: column; border-right: 1px solid #334155; z-index: 9999;
+        }
+        .admin-sidebar.open { transform: translateX(0); }
+        
+        .admin-header { padding: 20px; background: #020617; border-bottom: 1px solid #1e293b; display: flex; justify-content: space-between; align-items: center; }
+        .admin-title { font-weight: 800; font-size: 1.2rem; background: linear-gradient(to right, #818cf8, #38bdf8); -webkit-background: text; -webkit-text-fill-color: transparent; }
+        
+        .admin-content { flex: 1; padding: 20px; overflow-y: auto; }
+        
+        .admin-card { background: #1e293b; border-radius: 12px; padding: 15px; margin-bottom: 20px; border: 1px solid #334155; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
+        .admin-btn { width: 100%; padding: 12px; margin-top: 10px; border-radius: 8px; border: none; font-weight: 600; cursor: pointer; transition: 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 14px; }
+        .btn-primary { background: #4f46e5; color: white; }
+        .btn-primary:hover { background: #4338ca; }
+        .btn-danger { background: #ef4444; color: white; }
+        .btn-success { background: #10b981; color: white; }
+        .btn-warning { background: #f59e0b; color: white; }
+        
+        .toggle-switch { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+        .switch-label { font-size: 0.9rem; color: #cbd5e1; }
+        
+        /* Modal Style for Admin */
+        .admin-modal-box {
+            background: #ffffff; width: 90%; max-width: 400px; padding: 30px; border-radius: 16px; 
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); text-align: center;
+        }
+        .admin-input { width: 100%; padding: 12px; margin-bottom: 15px; border: 2px solid #e2e8f0; border-radius: 8px; outline: none; transition: 0.3s; font-size: 14px; }
+        .admin-input:focus { border-color: #4f46e5; }
+
+        /* Data List Styles */
+        .data-list-item {
+            display: flex; justify-content: space-between; align-items: center;
+            background: #334155; padding: 10px; margin-bottom: 8px; border-radius: 6px;
+        }
+        .data-list-item img { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; margin-right: 10px; }
+        .data-info { flex: 1; text-align: left; }
+        .data-actions button { padding: 5px 8px; font-size: 12px; margin-left: 5px; border-radius: 4px; border: none; cursor: pointer; color: white; }
+        .btn-sm-edit { background: #f59e0b; }
+        .btn-sm-del { background: #ef4444; }
+
+        /* Form Modal */
+        .form-modal-content {
+            background: white; width: 95%; max-width: 500px; padding: 25px; border-radius: 12px;
+            max-height: 90vh; overflow-y: auto; text-align: left;
+        }
+        .form-group { margin-bottom: 15px; }
+        .form-label { display: block; font-weight: 600; margin-bottom: 5px; color: #374151; }
+    </style>
+
+    <div id="admin-panel-root">
+        <!-- Toggle Button -->
+        <button class="admin-toggle-btn" onclick="adminApp.togglePanel()" title="Admin Panel">
+            <i data-feather="settings"></i>
+        </button>
+
+        <!-- LOGIN MODAL -->
+        <div id="admin-login-modal" class="admin-overlay">
+            <div class="admin-modal-box">
+                <h2 style="font-size: 1.8rem; font-weight: 900; color: #1e293b; margin-bottom: 1rem;">Admin Kirish</h2>
+                <p style="color: #64748b; margin-bottom: 20px;">Tizimga kirish uchun maxsus login va parolni kiriting.</p>
+                
+                <input type="text" id="admin-user-input" class="admin-input" placeholder="Login">
+                <input type="password" id="admin-pass-input" class="admin-input" placeholder="Parol">
+
+                <p id="login-error" style="color: #ef4444; font-size: 0.9rem; display: none; margin-bottom: 10px;">Login yoki parol noto'g'ri!</p>
+                
+                <button class="admin-btn btn-primary" onclick="adminApp.login()">Tizimga Kirish</button>
+            </div>
+        </div>
+
+        <!-- MAIN DASHBOARD SIDEBAR (LEFT) -->
+        <div id="admin-dashboard" class="admin-sidebar">
+            <div class="admin-header">
+                <span class="admin-title">Super Admin Panel</span>
+                <button onclick="adminApp.closePanel()" style="background: none; border: none; color: #94a3b8; cursor: pointer;"><i data-feather="x"></i></button>
+            </div>
+            
+            <div class="admin-content">
+                <!-- 1. JONLI TAHRIRLASH -->
+                <div class="admin-card">
+                    <h4 style="font-weight: bold; margin-bottom: 15px; color: white;">📝 Sahifani Tahrirlash</h4>
+                    <div class="toggle-switch">
+                        <span class="switch-label">Jonli Tahrirlash (Live Edit)</span>
+                        <input type="checkbox" id="live-edit-toggle" onchange="adminApp.toggleLiveEdit(this.checked)">
+                    </div>
+                    <p style="font-size: 0.8rem; color: #94a3b8; margin-top: 5px;">Yoqilganda, sahifadagi matn ustiga bosib, uni to'g'ridan-to'g'ri o'zgartirishingiz mumkin.</p>
+                    <button class="admin-btn btn-success" onclick="adminApp.saveAllChanges()">O'zgarishlarni Saqlash</button>
+                </div>
+
+                <!-- 2. MA'LUMOTLAR BAZASI BOSHQARUVI -->
+                <div class="admin-card">
+                    <h4 style="font-weight: bold; margin-bottom: 15px; color: white;">🗄 Ma'lumotlar Bazasi</h4>
+                    <p style="font-size: 0.8rem; color: #94a3b8; margin-bottom: 15px;">Ro'yxatlarni boshqarish:</p>
+                    
+                    <button class="admin-btn" style="background: #3b82f6; color: white;" onclick="adminApp.openDataManager('rahbariyat')">Rahbariyat</button>
+                    <button class="admin-btn" style="background: #3b82f6; color: white;" onclick="adminApp.openDataManager('teachers')">O'qituvchilar</button>
+                    <button class="admin-btn" style="background: #3b82f6; color: white;" onclick="adminApp.openDataManager('veterans')">Faxriylar</button>
+                    <button class="admin-btn" style="background: #3b82f6; color: white;" onclick="adminApp.openDataManager('rooms')">Maktab Xonalari</button>
+                    <button class="admin-btn" style="background: #3b82f6; color: white;" onclick="adminApp.openDataManager('olympiad')">Olimpiada G'oliblari</button>
+                    
+                    <!-- YANGI TUGMALAR -->
+                    <div style="border-top: 1px solid #334155; margin-top: 10px; padding-top: 10px;">
+                        <button class="admin-btn" style="background: #8b5cf6; color: white;" onclick="adminApp.openDataManager('news')">📰 Yangiliklar</button>
+                        <button class="admin-btn" style="background: #8b5cf6; color: white;" onclick="adminApp.openDataManager('events')">🎬 Tadbirlar (Video)</button>
+                        <button class="admin-btn" style="background: #8b5cf6; color: white;" onclick="adminApp.openDataManager('admission')">🍎 Qabul (Ma'lumot)</button>
+                        <button class="admin-btn" style="background: #8b5cf6; color: white;" onclick="adminApp.openDataManager('graduates')">🎓 Bitiruvchilar</button>
+                    </div>
+                </div>
+
+                <!-- 3. TIZIM SOZLAMALARI -->
+                <div class="admin-card">
+                    <h4 style="font-weight: bold; margin-bottom: 15px; color: white;">⚙️ Tizim Sozlamalari</h4>
+                    <button class="admin-btn btn-danger" onclick="adminApp.resetAll()">Zavod Sozlamalariga Qaytarish</button>
+                    <button class="admin-btn" style="background: #475569; color: white; margin-top: 10px;" onclick="adminApp.logout()">Chiqish</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- DATA MANAGER MODAL (ADD/EDIT/LIST) -->
+        <div id="admin-data-modal" class="admin-overlay">
+            <div class="form-modal-content" style="max-width: 600px; background: #1e293b; color: white;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid #334155; padding-bottom: 10px;">
+                    <h3 id="data-modal-title" style="font-size: 1.5rem; font-weight: bold;">Ro'yxat</h3>
+                    <button onclick="adminApp.closeDataModal()" style="background: none; border: none; color: #94a3b8; cursor: pointer; font-size: 1.5rem;">&times;</button>
+                </div>
+
+                <!-- Add Button -->
+                <button class="admin-btn btn-success" onclick="adminApp.openAddForm()" style="margin-bottom: 15px;">+ Yangi Qo'shish</button>
+
+                <!-- List Container -->
+                <div id="data-list-container" style="max-height: 400px; overflow-y: auto;">
+                    <!-- Items will be injected here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- FORM MODAL (ADD/EDIT ITEM) -->
+        <div id="admin-form-modal" class="admin-overlay" style="z-index: 10001;">
+            <div class="form-modal-content">
+                <h3 id="form-title" style="font-size: 1.5rem; font-weight: bold; margin-bottom: 20px; color: #1f2937;">Ma'lumot Qo'shish</h3>
+                <form id="dynamic-form" onsubmit="event.preventDefault(); adminApp.saveFormData();">
+                    <!-- Dynamic Inputs will be here -->
+                </form>
+                <div style="display: flex; gap: 10px; margin-top: 20px;">
+                    <button class="admin-btn btn-primary" onclick="adminApp.saveFormData()">Saqlash</button>
+                    <button class="admin-btn" onclick="document.getElementById('admin-form-modal').style.display='none'" style="background: #9ca3af; color: white;">Bekor qilish</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script id="admin-script">
+        const adminApp = (() => {
+            // URL CHECK
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('admin') === 'open') {
+                document.getElementById('admin-panel-root').style.display = 'block';
+            }
+
+            // State
+            let isLiveEdit = false;
+            let currentCategory = null;
+            let editingId = null;
+
+            // SCHEMAS (FORM STRUCTURES FOR EACH CATEGORY)
+            const schemas = {
+                rahbariyat: {
+                    title: "Rahbariyat",
+                    fields: [
+                        { key: 'ism', label: 'F.I.SH', type: 'text', placeholder: 'Ism Familiya' },
+                        { key: 'lavozim', label: 'Lavozim', type: 'text', placeholder: 'Direktor' },
+                        { key: 'rasm', label: 'Rasm URL (yoki fayl nomi)', type: 'text', placeholder: 'rasm.jpg' }
+                    ]
+                },
+                teachers: {
+                    title: "O'qituvchilar",
+                    fields: [
+                        { key: 'ism', label: 'F.I.SH', type: 'text', placeholder: 'Ism Familiya' },
+                        { key: 'fan', label: 'Fan', type: 'text', placeholder: 'Matematika' },
+                        { key: 'tajriba', label: 'Tajriba', type: 'text', placeholder: '10 yil' },
+                        { key: 'rasm', label: 'Rasm URL', type: 'text', placeholder: 'rasm.jpg' }
+                    ]
+                },
+                veterans: {
+                    title: "Faxriylar",
+                    fields: [
+                        { key: 'ism', label: 'F.I.SH', type: 'text', placeholder: 'Ism Familiya' },
+                        { key: 'yillar', label: 'Ishlagan yillari', type: 'text', placeholder: '1980-2020' },
+                        { key: 'rasm', label: 'Rasm URL', type: 'text', placeholder: 'rasm.jpg' }
+                    ]
+                },
+                rooms: {
+                    title: "Xonalar",
+                    fields: [
+                        { key: 'nom', label: 'Xona nomi', type: 'text', placeholder: 'Informatika xonasi' },
+                        { key: 'rasm', label: 'Rasm URL', type: 'text', placeholder: 'room.jpg' },
+                        { key: 'video', label: 'Video URL', type: 'text', placeholder: 'video.mp4' }
+                    ]
+                },
+                olympiad: {
+                    title: "Olimpiada G'oliblari",
+                    fields: [
+                        { key: 'ism', label: 'F.I.SH', type: 'text', placeholder: 'O\'quvchi ismi' },
+                        { key: 'sinf', label: 'Sinf', type: 'text', placeholder: '11-A' },
+                        { key: 'fan', label: 'Fan', type: 'text', placeholder: 'Fizika' },
+                        { key: 'bosqich', label: 'Bosqich', type: 'text', placeholder: 'Viloyat' },
+                        { key: 'orin', label: 'O\'rin', type: 'text', placeholder: '1-o\'rin' },
+                        { key: 'rasm', label: 'Rasm URL', type: 'text', placeholder: 'student.jpg' }
+                    ]
+                },
+                // YANGI SCHEMAS
+                news: {
+                    title: "Yangiliklar",
+                    fields: [
+                        { key: 'nom', label: 'Sarlavha', type: 'text', placeholder: 'Yangilik nomi' },
+                        { key: 'description', label: 'Qisqacha mazmuni', type: 'text', placeholder: 'Tafsilotlar...' },
+                        { key: 'rasm', label: 'Rasm URL', type: 'text', placeholder: 'image.jpg' }
+                    ]
+                },
+                events: {
+                    title: "Tadbirlar",
+                    fields: [
+                        { key: 'nom', label: 'Tadbir nomi', type: 'text', placeholder: 'Bayram tadbiri' },
+                        { key: 'description', label: 'Izoh', type: 'text', placeholder: 'Qisqacha...' },
+                        { key: 'video', label: 'Video URL', type: 'text', placeholder: 'video.mp4' }
+                    ]
+                },
+                admission: {
+                    title: "Qabul",
+                    fields: [
+                        { key: 'nom', label: 'Sarlavha', type: 'text', placeholder: '1-Sinf Qabuli' },
+                        { key: 'description', label: 'Qo\'shimcha ma\'lumot', type: 'text', placeholder: 'Izoh...' },
+                        { key: 'video', label: 'Video/Youtube URL', type: 'text', placeholder: 'https://youtube...' }
+                    ]
+                },
+                graduates: {
+                    title: "Bitiruvchilar",
+                    fields: [
+                         { key: 'yil', label: 'Bitiruv Yili', type: 'text', placeholder: '2025' },
+                         { key: 'sinf', label: 'Sinf (harf)', type: 'text', placeholder: 'A' },
+                         { key: 'video', label: 'Video URL', type: 'text', placeholder: 'video.mp4' }
+                    ]
+                }
+            };
+
+            // --- AUTHENTICATION ---
+            function togglePanel() {
+                if (sessionStorage.getItem('admin_logged_in') === 'true') {
+                    document.getElementById('admin-dashboard').classList.add('open');
+                    if (window.feather) feather.replace();
+                } else {
+                    document.getElementById('admin-login-modal').style.display = 'flex';
+                }
+            }
+
+            function closePanel() {
+                document.getElementById('admin-dashboard').classList.remove('open');
+            }
+
+            function login() {
+                const u = document.getElementById('admin-user-input').value;
+                const p = document.getElementById('admin-pass-input').value;
+                if (u === 'begzod' && p === 'begzod08') {
+                    sessionStorage.setItem('admin_logged_in', 'true');
+                    document.getElementById('admin-login-modal').style.display = 'none';
+                    Swal.fire({ title: 'Xush kelibsiz!', text: 'Admin tizimga kirdi', icon: 'success', timer: 1500, showConfirmButton: false });
+                    togglePanel();
+                } else {
+                    document.getElementById('login-error').style.display = 'block';
+                }
+            }
+
+            function logout() {
+                sessionStorage.removeItem('admin_logged_in');
+                closePanel();
+                location.reload();
+            }
+
+            // --- LIVE EDIT LOGIC ---
+            function toggleLiveEdit(enable) {
+                isLiveEdit = enable;
+                const elements = document.querySelectorAll('.editable-text, h1, h2, h3, p, span, a, li');
+                
+                if (enable) {
+                    document.body.classList.add('live-edit-active');
+                    elements.forEach(el => {
+                        el.contentEditable = "true";
+                        if (el.tagName === 'A') el.onclick = (e) => e.preventDefault();
+                    });
+                    Swal.fire({ title: 'Jonli Tahrir Yoqildi', text: 'Endi matnlarni ustiga bosib o\'zgartira olasiz.', icon: 'info', timer: 2000, showConfirmButton: false });
+                } else {
+                    document.body.classList.remove('live-edit-active');
+                    elements.forEach(el => {
+                        el.contentEditable = "false";
+                        if (el.tagName === 'A') el.onclick = null;
+                    });
+                }
+            }
+
+            function saveContent() {
+                const editableElements = document.querySelectorAll('.editable-text, h1, h2, h3, p, span, a, li');
+                const contentMap = {};
+                
+                editableElements.forEach((el, index) => {
+                    if (!el.id) el.id = 'content-' + index;
+                    if (el.innerText.trim() !== "") {
+                         contentMap[el.id] = el.innerHTML;
+                    }
+                });
+                localStorage.setItem('site_content_data', JSON.stringify(contentMap));
+                Swal.fire('Saqlandi!', 'Barcha matn o\'zgarishlari saqlandi.', 'success');
+            }
+
+            function loadContent() {
+                const stored = localStorage.getItem('site_content_data');
+                if (stored) {
+                    const contentMap = JSON.parse(stored);
+                    for (const [id, html] of Object.entries(contentMap)) {
+                        const el = document.getElementById(id);
+                        if (el) el.innerHTML = html;
+                    }
+                }
+            }
+
+            // --- DATA MANAGER LOGIC (CRUD) ---
+            
+            function openDataManager(category) {
+                currentCategory = category;
+                const schema = schemas[category];
+                document.getElementById('data-modal-title').innerText = schema.title + "ni Boshqarish";
+                document.getElementById('admin-data-modal').style.display = 'flex';
+                renderDataList();
+            }
+
+            function closeDataModal() {
+                document.getElementById('admin-data-modal').style.display = 'none';
+            }
+
+            function renderDataList() {
+                const listContainer = document.getElementById('data-list-container');
+                const items = AppData[currentCategory];
+                let html = '';
+
+                if (items.length === 0) {
+                    html = '<p style="text-align:center; color:#94a3b8; padding: 20px;">Ma\'lumot topilmadi.</p>';
+                } else {
+                    items.forEach(item => {
+                        // Birinchi matnli maydonni topish (ism yoki nom yoki yil)
+                        const displayTitle = item.ism || item.nom || item.yil || 'Nomsiz';
+                        const displaySub = item.lavozim || item.fan || item.yillar || item.description || item.sinf + ' Sinf' || '';
+                        const img = item.rasm || '';
+
+                        // Agar rasm bo'lsa ko'rsatamiz, bo'lmasa icon
+                        let imgHtml = img ? `<img src="${img}" onerror="this.src='https://via.placeholder.com/40?text=IMG'">` : '<div style="width:40px;height:40px;background:#475569;border-radius:50%;display:flex;align-items:center;justify-content:center;margin-right:10px;">📄</div>';
+
+                        html += `
+                            <div class="data-list-item">
+                                <div style="display:flex; align-items:center;">
+                                    ${imgHtml}
+                                    <div class="data-info">
+                                        <div style="font-weight:bold; color:white;">${displayTitle}</div>
+                                        <div style="font-size:0.8rem; color:#94a3b8; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:150px;">${displaySub}</div>
+                                    </div>
+                                </div>
+                                <div class="data-actions">
+                                    <button class="btn-sm-edit" onclick="adminApp.openEditForm(${item.id})">✎</button>
+                                    <button class="btn-sm-del" onclick="adminApp.deleteItem(${item.id})">🗑</button>
+                                </div>
+                            </div>
+                        `;
+                    });
+                }
+                listContainer.innerHTML = html;
+            }
+
+            // Form Builder
+            function buildForm(isEdit = false, data = {}) {
+                const schema = schemas[currentCategory];
+                const form = document.getElementById('dynamic-form');
+                let html = '';
+
+                schema.fields.forEach(field => {
+                    const value = isEdit ? (data[field.key] || '') : '';
+                    html += `
+                        <div class="form-group">
+                            <label class="form-label">${field.label}</label>
+                            <input type="${field.type}" id="field-${field.key}" class="admin-input" placeholder="${field.placeholder}" value="${value}">
+                        </div>
+                    `;
+                });
+                // Hidden ID field for edit
+                if (isEdit) {
+                    html += `<input type="hidden" id="edit-id" value="${data.id}">`;
+                }
+                form.innerHTML = html;
+            }
+
+            function openAddForm() {
+                editingId = null;
+                document.getElementById('form-title').innerText = "Yangi " + schemas[currentCategory].title.slice(0, -1) + " qo'shish";
+                buildForm(false);
+                document.getElementById('admin-form-modal').style.display = 'flex';
+            }
+
+            function openEditForm(id) {
+                editingId = id;
+                const item = AppData[currentCategory].find(i => i.id === id);
+                if (!item) return;
+
+                document.getElementById('form-title').innerText = "Tahrirlash";
+                buildForm(true, item);
+                document.getElementById('admin-form-modal').style.display = 'flex';
+            }
+
+            function saveFormData() {
+                const schema = schemas[currentCategory];
+                const newItem = {};
+
+                // Collect data
+                schema.fields.forEach(field => {
+                    newItem[field.key] = document.getElementById(`field-${field.key}`).value;
+                });
+
+                if (editingId) {
+                    // Update
+                    const index = AppData[currentCategory].findIndex(i => i.id === editingId);
+                    if (index !== -1) {
+                        // Preserve Likes and Comments when editing other fields
+                        const oldItem = AppData[currentCategory][index];
+                        newItem.id = editingId;
+                        if(oldItem.likes !== undefined) newItem.likes = oldItem.likes;
+                        if(oldItem.comments !== undefined) newItem.comments = oldItem.comments;
+                        
+                        AppData[currentCategory][index] = newItem;
+                    }
+                } else {
+                    // Create
+                    newItem.id = Date.now(); // Simple ID generation
+                    // Initialize Likes and Comments for new items
+                    if (['graduates', 'events'].includes(currentCategory)) {
+                        newItem.likes = 0;
+                        newItem.comments = [];
+                    }
+                    AppData[currentCategory].push(newItem);
+                }
+
+                // Save to Storage
+                AppData.save(currentCategory);
+
+                // Update UI
+                renderDataList(); // Admin List update
+                refreshSiteSection(currentCategory); // Main Site update
+                
+                // Close Form
+                document.getElementById('admin-form-modal').style.display = 'none';
+                Swal.fire({ icon: 'success', title: 'Saqlandi', showConfirmButton: false, timer: 1000 });
+            }
+
+            function deleteItem(id) {
+                Swal.fire({
+                    title: 'Ishonchingiz komilmi?',
+                    text: "Bu ma'lumot o'chib ketadi!",
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#3085d6',
+                    cancelButtonColor: '#d33',
+                    confirmButtonText: 'Ha, o\'chirilsin!'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        AppData[currentCategory] = AppData[currentCategory].filter(i => i.id !== id);
+                        AppData.save(currentCategory);
+                        renderDataList();
+                        refreshSiteSection(currentCategory);
+                        Swal.fire('O\'chirildi!', 'Ma\'lumot bazadan olib tashlandi.', 'success');
+                    }
+                })
+            }
+
+            function refreshSiteSection(category) {
+                // Call the original render functions based on updated data
+                if (category === 'teachers') window.renderTeachers();
+                if (category === 'rahbariyat') window.renderAdministration();
+                if (category === 'veterans') window.renderVeterans();
+                if (category === 'rooms') window.renderSchoolRooms();
+                if (category === 'olympiad') window.renderOlympiad();
+                if (category === 'news') window.renderNews();
+                if (category === 'events') window.renderEvents();
+                if (category === 'admission') window.renderAdmission();
+                if (category === 'graduates') window.renderGraduatesSetup();
+                
+                // Re-initialize AOS to animate new elements
+                setTimeout(() => AOS.refresh(), 100);
+            }
+
+            function resetAll() {
+                Swal.fire({
+                    title: 'Diqqat!',
+                    text: "Barcha kiritilgan o'zgarishlar va qo'shilgan ma'lumotlar o'chib ketadi. Rozimisiz?",
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonText: 'Ha, tozala'
+                }).then((result) => {
+                    if(result.isConfirmed) {
+                        localStorage.clear();
+                        location.reload();
+                    }
+                });
+            }
+
+            return {
+                togglePanel, closePanel, login, logout,
+                toggleLiveEdit, saveAllChanges: saveContent, loadContent, resetAll,
+                openDataManager, closeDataModal,
+                openAddForm, openEditForm, saveFormData, deleteItem
+            };
+        })();
+    </script>
+</body>
+</html>
+```
